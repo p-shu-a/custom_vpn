@@ -40,7 +40,7 @@ func listenAndServe(port int){
 
 func handleClientConn(clientConn net.Conn){
 	fmt.Printf("server: recieved a conn RemoteAddr: %v\n", clientConn.RemoteAddr())
-	clientConn.Write([]byte("conn established with server"))
+	//clientConn.Write([]byte("conn established with server"))
 	targetConn, err := net.Dial("tcp", "127.0.0.1:22")
 	if err != nil{
 		log.Fatalf("server: error while connecting to ssh on server: %v \n", err)

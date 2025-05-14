@@ -38,7 +38,7 @@ func startLocalListener(port int){
 
 func handleLocalConnection(conn net.Conn){
 	fmt.Printf("client: recieved conn from: %v \n", conn.RemoteAddr().String())
-	conn.Write([]byte("connection establised with client"))
+	//conn.Write([]byte("connection establised with client"))
 	serverConn, err := net.Dial("tcp6",":9000")
 	if err != nil{
 		log.Fatalf("client: error dialing to server: %v", err)
