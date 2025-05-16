@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
+	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
-	"fmt"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 )
@@ -19,7 +21,11 @@ func main(){
 // Listen for incoming connections
 func listenAndServe(port int){
 
-	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d", port))
+	serverConfig, err := tlsconfig.ServerTLSConfig()
+	if err != nil {
+		log.Fatalf("server: error getting server config: %v", err)
+	}
+	listener, err := tls.Listen("tcp6", fmt.Sprintf(":%d", port), serverConfig)
 	if err != nil{
 		log.Fatalf("server: error while starting listener on %d:%v", port, err)
 	}
@@ -34,7 +40,7 @@ func listenAndServe(port int){
 		}
 		go handleClientConn(clientConn)
 	}
-
+	//fmt.Printf("raw issuer for server cert: %v", serverCert.Leaf.RawIssuer)
 }
 
 func handleClientConn(clientConn net.Conn){

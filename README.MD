@@ -82,6 +82,10 @@ client    30646 user    6u  IPv6 0xec586c6d9524a865      0t0  TCP [::1]:54632->[
 
 
 
+### CN vs SAN
+- 
+
+
 
 
 
