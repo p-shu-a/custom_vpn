@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -13,13 +12,13 @@ import (
 // we'll fire off main, and use it to parse the port flag
 // -p flag specifies what port listen on
 func main(){
-	portPtr := flag.Int("p", 9000, "port to listen on")
-	flag.Parse()
-	listenAndServe(*portPtr)
+	go listenAndServeWithTLS(9001)
+	go listenAndServeNoTLS(9000)
+	select {}
 }
 
 // Listen for incoming connections
-func listenAndServe(port int){
+func listenAndServeWithTLS(port int){
 
 	serverConfig, err := tlsconfig.ServerTLSConfig()
 	if err != nil {
@@ -40,10 +39,28 @@ func listenAndServe(port int){
 		}
 		go handleClientConn(clientConn)
 	}
-	//fmt.Printf("raw issuer for server cert: %v", serverCert.Leaf.RawIssuer)
+	
 }
 
+func listenAndServeNoTLS(port int){
+	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d",port))
+	if err != nil{
+		log.Fatalf("server: error starting listener (on-tls) on %d: %v", port, err)
+	}
+	defer listener.Close()
+
+	for {
+		clientConn, err := listener.Accept()
+		if err != nil{
+			log.Printf("server: unable to accept connection on %d: %v", port, err)
+		}
+		go handleClientConn(clientConn)
+	}
+}
+
+
 func handleClientConn(clientConn net.Conn){
+	
 	fmt.Printf("server: recieved a conn RemoteAddr: %v\n", clientConn.RemoteAddr())
 	//clientConn.Write([]byte("conn established with server"))
 	targetConn, err := net.Dial("tcp", "127.0.0.1:22")

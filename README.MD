@@ -81,16 +81,48 @@ client    30646 user    6u  IPv6 0xec586c6d9524a865      0t0  TCP [::1]:54632->[
     - we need specify a tls.Config{} struct for both
 
 
-
 ### CN vs SAN
-- 
+- CN is deprecated, gotta use Subject Alternate Names in a cert to 
 
+### TCP handshake
+- TCP handshake is a way of extablishing connection from client to server
+- C->S: Syn, S->C: syn-ack, C->S: ack
+- then onto a TLS handshake
+- transport layer
 
-
-
-
+### ToDo:
+- split basic, and tls functions into their own functions, operating concurrently
+- add notes
+- CN vs SAN? what problem is SAN solving?
+- add clean-restart to server logic...if server goes down, pops back up...continues service
+- implement flags. what are some decent flags to have?
+    - not ports. implementation detail, user doesn't care, just make it sensible
+    - flag for tls vs no-tls
+    - flag for udp connection vs tcp conn
+        - can we measure the diff in performance?
+        - no tcp handshake with udp!
+    - related question: is there a way to query the flags an app offers?
+- how can i specify multiple different names in altnames of my cert?
+    - localhost is one. can "Tony's fine servers" be another?
 
 
 ### Questions:
 - whats a context?
 - how does go handle go-routines which spawn go-routines?
+- don't know much about make() how is it different from var delaration?
+- re:wildcard domains, do google services all use the same cert?
+    - maps.google, calendar.google, etc
+- can i fake my ip locallly? everything is going from localhost to localhost. it would help to make that field more useful for dev
+- can i download a legit website's cert, and pass it off as my own? 
+    - i, as a server, only have to show my cert to the public.
+    - but the client is expecting a particular CN
+        - but we can be one of the many SANs
+        - if you're one of the sans, you're legit
+    - what happens if you're a fake website offering a legit cert, which doesn't belong to your domain?
+        - what if you meet the client in the middle? he asks for a particular server, you show a cert for that server, but 
+        - i mean dns forwarding is a thing. if you got to maps.google.com, you get forwarded to google.com/maps different CN
+
+- benefits of UDP vpn over TCP?
+- Datagram tls? what does the datagram refer to?
+- measuring packet loss with UDP. how do i know what % of my original showed up at destination?
+- once the session key is derrived, where can i see it in the packets?
