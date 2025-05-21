@@ -1,4 +1,6 @@
 bin/*
 certs/*
+!certs/README.MD
 priv_keys/*
+!priv_keys/README.MD
 .vscode/*

@@ -28,7 +28,6 @@ func setupShutdownHelper() context.Context {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs // block here until there is something is recieved
-		log.Print("a signal came down")
 		cancel()
 	}()
 	return ctx
