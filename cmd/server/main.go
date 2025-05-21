@@ -63,7 +63,7 @@ func main(){
 		This way, the errors eminating from the server functions are all logged in order(!) before we exit
 	*/
 	<-done
-	log.Println("All servers closed. Exiting...")
+	log.Println("server: All servers closed. Exiting...")
 }
 
 /*
@@ -136,7 +136,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 		errCh <- fmt.Errorf("error starting listener (on-tls) on %d: %v", port, err)
 		return
 	} else{
-		log.Printf("non-TLS server: Listening on %d\n",port)
+		log.Printf("server: non-TLS Listening on %d\n",port)
 	}
 	defer listener.Close()
 
@@ -165,7 +165,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 
 func handleClientConn(clientConn net.Conn, errCh chan<- error) {
 
-	log.Printf("Recieved a conn on %v from %v\n", clientConn.LocalAddr(), clientConn.RemoteAddr())
+	log.Printf("server: Recieved a conn on %v from %v\n", clientConn.LocalAddr(), clientConn.RemoteAddr())
 
 	targetConn, err := net.Dial("tcp", "127.0.0.1:22")
 	if err != nil{

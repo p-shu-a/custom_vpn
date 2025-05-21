@@ -11,18 +11,20 @@ import (
 )
 
 func main(){
-	clientListenerPort := flag.Int("p", 2022, "App Port") // shitty description
-	transSec := flag.Bool("tls", true, "Choose TLS (default) or basic TCP (set false)")
+	clientListenerPort := flag.Int("p", 2022, "Port used to connect to client (via nc, socat)")
+	remoteServerAddress := flag.String("addr", "localhost", "Server IP Address")
+	transSec := flag.Bool("tls", true, "Use TLS or basic TCP")
 	flag.Parse()
-	if err := startLocalListener(*clientListenerPort, *transSec); err != nil {
+	if err := startLocalListener(*clientListenerPort, *transSec, *remoteServerAddress); err != nil {
 		log.Fatalf("Client: %v", err)
 	}
 }
 
 // this function is blocking...and we want it to blocks
-func startLocalListener(clientListenerPort int, transSec bool) error {
+func startLocalListener(clientListenerPort int, transSec bool, serverAddr string) error {
 
-	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d",clientListenerPort))
+	// this listener is local to the client machine
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d",clientListenerPort))
 
 	if err != nil{
 		return fmt.Errorf("error creating listener: %v", err)
@@ -45,12 +47,12 @@ func startLocalListener(clientListenerPort int, transSec bool) error {
 		//no go-routine. we're only listening to a single conn
 		if transSec {
 			// provide TLS
-			if err := connectRemoteSecure(9001, conn); err != nil {
+			if err := connectRemoteSecure(9001, conn, serverAddr); err != nil {
 				return err
 			}
 		} else{
 			// no TLS
-			if err := connectRemoteUnsec(9000, conn); err != nil {
+			if err := connectRemoteUnsec(9000, conn, serverAddr); err != nil {
 				return err
 			}
 		}
@@ -63,7 +65,7 @@ func startLocalListener(clientListenerPort int, transSec bool) error {
 	- what should happen is that if the server kills the connection, you should be able to reattempt
 */
 
-func connectRemoteSecure(serverConnPort int, conn net.Conn) error {
+func connectRemoteSecure(serverConnPort int, conn net.Conn, serverAddr string) error {
 	
 	clientConfg, err := tlsconfig.ClientTLSConfig()
 	if err != nil{
@@ -71,11 +73,13 @@ func connectRemoteSecure(serverConnPort int, conn net.Conn) error {
 	}
 
 	// if you wonder where the "conn.close()" are, they're in the tunnel logic
-	serverConn, err := tls.Dial("tcp6", fmt.Sprintf(":%d", serverConnPort), clientConfg)
+	serverConn, err := tls.Dial("tcp",
+								fmt.Sprintf("%v:%d", serverAddr, serverConnPort), 
+								clientConfg)
 	if err != nil{
-		return fmt.Errorf("error dialing to server on %d: %v", serverConnPort, err)
+		return fmt.Errorf("error dialing to server (%v:%d): %v", serverAddr, serverConnPort, err)
 	} else{
-		log.Printf("client: secure connection to server successfully established on port :%d\n", serverConnPort)
+		log.Printf("client: secure connection to server successfully established %v:%d\n", serverAddr, serverConnPort)
 	}
 
 	tunnel.CreateTunnel(serverConn, conn)
@@ -84,13 +88,13 @@ func connectRemoteSecure(serverConnPort int, conn net.Conn) error {
 }
 
 
-func connectRemoteUnsec(serverConnPort int, conn net.Conn) error {
+func connectRemoteUnsec(serverConnPort int, conn net.Conn, serverAddr string) error {
 
-	serverConn, err := net.Dial("tcp6", fmt.Sprintf(":%d", serverConnPort))
+	serverConn, err := net.Dial("tcp", fmt.Sprintf("%v:%d", serverAddr, serverConnPort))
 	if err != nil{
-		return fmt.Errorf("client: error dialing to server on %d: %v", serverConnPort, err)
+		return fmt.Errorf("client: error dialing to server (%v:%d): %v", serverAddr, serverConnPort, err)
 	} else{
-		log.Printf("client: insecure connection to server successfully established on port: %d", serverConnPort)
+		log.Printf("client: insecure connection to server successfully established (%v:%d)\n", serverAddr, serverConnPort)
 	}
 
 	tunnel.CreateTunnel(serverConn, conn)

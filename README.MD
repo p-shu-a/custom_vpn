@@ -1,33 +1,10 @@
-UDP vs TCP
-- differences?
-- uses?
-
-- what is NORDVPN's architecture?
-
-- to start sshd on macos, you gotta enable remote login. do this via settings panel or :
-sudo systemsetup -setremotelogin on
-
-user@user ~ $ lsof -Pn -i6 | grep "^server\|^client"
-server    30645 user    3u  IPv6 0xf18cdf112a105407      0t0  TCP *:9000 (LISTEN)
-server    30645 user    5u  IPv6 0x677e1030533d680b      0t0  TCP [::1]:9000->[::1]:54632 (ESTABLISHED)
-server    30645 user    6u  IPv6 0x489670b6cc14f73b      0t0  TCP [::1]:54633->[::1]:22 (ESTABLISHED)
-client    30646 user    3u  IPv6 0xc37b1a3b2f44f182      0t0  TCP *:2022 (LISTEN)
-client    30646 user    5u  IPv6 0x5a5707c7b5ce2824      0t0  TCP [::1]:2022->[::1]:54631 (ESTABLISHED)
-client    30646 user    6u  IPv6 0xec586c6d9524a865      0t0  TCP [::1]:54632->[::1]:9000 (ESTABLISHED)
-
 #### Lets walk through the architecture.
-- there is a client, which listens for connections on port 2022. upon receiving a conn, it dials my server on port 9000.
-- I've got a server, listening on port 9000. upon receiving a connection, the server dials to port 22, ssh. a banner `SSH-2.0-OpenSSH_9.9` is presented to the connecting user
+- there is a client, which listens for connections on port 2022. upon receiving a conn, it dials my server on port 9000 and 9001 for TLS
+- I've got a server, listening on port 9000. 
+    - upon receiving a connection, the server dials to port 22, ssh. 
+    - a banner `SSH-2.0-OpenSSH_9.9` is presented to the connecting user
 - right now, i connect (via nc/socat) to my client. but in a "real" vpn app, this would be done through something like a desktop app.
     - login in, click "connect" and all the dialing to server is done via the app.
-
-
-#### Useful commands:
-
-`sudo tcpdump -i lo0 -w session.pcap tcp port 2022`: monitor action on port 2022, on the specified interface (lo0), use ifconfig to get list of interfaces
-`lsof -Pn -i[46]`: list all files, iwhtout port names or host names. files should be ipv4[or 6, but not both]
-`netstat`: is also useful, but its not the same as linux
-
 
 ### TLS
 - TLS is a protocol used to provide auth between parties, and encryption and integrity of data shared between them.
@@ -73,6 +50,7 @@ client    30646 user    6u  IPv6 0xec586c6d9524a865      0t0  TCP [::1]:54632->[
     - the `-help` flag for openssl is pretty decent
 - If you want to see the metadata of a cert, do:
     `openssl x509 -in homie.pem -text -noout`
+- CN is deprecated, gotta use Subject Alternate Names
 - Further Reading: https://letsencrypt.org/certificates/
 
 
@@ -80,49 +58,19 @@ client    30646 user    6u  IPv6 0xec586c6d9524a865      0t0  TCP [::1]:54632->[
 - to setup a TLS tunnel, we need to specify TLS configs for both the server and client ends
     - we need specify a tls.Config{} struct for both
 
-
-### CN vs SAN
-- CN is deprecated, gotta use Subject Alternate Names in a cert to 
-
 ### TCP handshake
 - TCP handshake is a way of extablishing connection from client to server
 - C->S: Syn, S->C: syn-ack, C->S: ack
 - then onto a TLS handshake
-- transport layer
 
 ### ToDo:
-- split basic, and tls functions into their own functions, operating concurrently
-- add notes
-- CN vs SAN? what problem is SAN solving?
+
 - add clean-restart to server logic...if server goes down, pops back up...continues service
 - implement flags. what are some decent flags to have?
-    - not ports. implementation detail, user doesn't care, just make it sensible
-    - flag for tls vs no-tls
-    - flag for udp connection vs tcp conn
-        - can we measure the diff in performance?
-        - no tcp handshake with udp!
-    - related question: is there a way to query the flags an app offers?
+    - flags to specify certs?
+- modularize the code
+- export cert locations to env-vars.
+
 - how can i specify multiple different names in altnames of my cert?
+    - do he names have to be ips, or domains or can they be just a bunch of baloney?
     - localhost is one. can "Tony's fine servers" be another?
-
-
-### Questions:
-- whats a context?
-- how does go handle go-routines which spawn go-routines?
-- don't know much about make() how is it different from var delaration?
-- re:wildcard domains, do google services all use the same cert?
-    - maps.google, calendar.google, etc
-- can i fake my ip locallly? everything is going from localhost to localhost. it would help to make that field more useful for dev
-- can i download a legit website's cert, and pass it off as my own? 
-    - i, as a server, only have to show my cert to the public.
-    - but the client is expecting a particular CN
-        - but we can be one of the many SANs
-        - if you're one of the sans, you're legit
-    - what happens if you're a fake website offering a legit cert, which doesn't belong to your domain?
-        - what if you meet the client in the middle? he asks for a particular server, you show a cert for that server, but 
-        - i mean dns forwarding is a thing. if you got to maps.google.com, you get forwarded to google.com/maps different CN
-
-- benefits of UDP vpn over TCP?
-- Datagram tls? what does the datagram refer to?
-- measuring packet loss with UDP. how do i know what % of my original showed up at destination?
-- once the session key is derrived, where can i see it in the packets?
