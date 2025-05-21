@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-
+// add wait group here too
 func CreateTunnel(dst, src net.Conn){
 	var once sync.Once
 	closeConns := func ()  {
@@ -18,6 +18,7 @@ func CreateTunnel(dst, src net.Conn){
 		io.Copy(dst, src)
 		once.Do(closeConns)
 	}()
+
 	go func ()  {
 		io.Copy(src, dst)
 		once.Do(closeConns)

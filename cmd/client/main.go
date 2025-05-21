@@ -11,63 +11,89 @@ import (
 )
 
 func main(){
-	port:= flag.Int("p", 2022, "App Port") // shitty description
+	clientListenerPort := flag.Int("p", 2022, "App Port") // shitty description
 	transSec := flag.Bool("tls", true, "Choose TLS (default) or basic TCP (set false)")
 	flag.Parse()
-	startLocalListener(*port, *transSec)
+	if err := startLocalListener(*clientListenerPort, *transSec); err != nil {
+		log.Fatalf("Client: %v", err)
+	}
 }
 
 // this function is blocking...and we want it to blocks
-func startLocalListener(port int, transSec bool){
-	listener, err := net.Listen(
-		"tcp6",
-		fmt.Sprintf(":%d",port))
+func startLocalListener(clientListenerPort int, transSec bool) error {
+
+	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d",clientListenerPort))
 
 	if err != nil{
-		log.Fatalf("client: error creating listener: %v", err)
+		return fmt.Errorf("error creating listener: %v", err)
+	} else{
+		log.Printf("client: listener started successfully on %d", clientListenerPort)
 	}
 	defer listener.Close()
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil{
-			fmt.Printf("client: failed to accept connection: %v \n", err)
-			continue
+			_ , match := err.(net.Error) 
+			if match {
+				continue
+			}
+			return fmt.Errorf("failed to accept connection: %v", err)
 		}
+		log.Printf("client: recieved connection from: %v\n", conn.RemoteAddr().String())
+
 		//no go-routine. we're only listening to a single conn
 		if transSec {
-			connectRemoteSecure(conn)		// provide TLS
+			// provide TLS
+			if err := connectRemoteSecure(9001, conn); err != nil {
+				return err
+			}
 		} else{
-			connectRemoteUnsec(conn)		// no TLS
+			// no TLS
+			if err := connectRemoteUnsec(9000, conn); err != nil {
+				return err
+			}
 		}
-		
 	}
 }
 
-func connectRemoteSecure(conn net.Conn){
-	port := 9001
-	// if you wonder where the defer conn.close() are, they're in the tunnel logics
-	fmt.Printf("client: recieved conn from: %v \n", conn.RemoteAddr().String())
+/*
+	whats the issue i'm having right now?
+	- ideally the client, would only accept one incoming connection on port 2022. not multiple. multiple is the default
+	- what should happen is that if the server kills the connection, you should be able to reattempt
+*/
+
+func connectRemoteSecure(serverConnPort int, conn net.Conn) error {
+	
 	clientConfg, err := tlsconfig.ClientTLSConfig()
 	if err != nil{
-		log.Fatalf("client: error fetching client config: %v",err)
-	}else{
-		log.Printf("got client config. dialing remote on %d...\n", port)
+		return fmt.Errorf("error fetching client config: %v",err)
 	}
-	serverConn, err := tls.Dial("tcp6", fmt.Sprintf(":%d", port), clientConfg)
+
+	// if you wonder where the "conn.close()" are, they're in the tunnel logic
+	serverConn, err := tls.Dial("tcp6", fmt.Sprintf(":%d", serverConnPort), clientConfg)
 	if err != nil{
-		log.Fatalf("client: error dialing to server on %d: %v", port, err)
+		return fmt.Errorf("error dialing to server on %d: %v", serverConnPort, err)
+	} else{
+		log.Printf("client: secure connection to server successfully established on port :%d\n", serverConnPort)
 	}
+
 	tunnel.CreateTunnel(serverConn, conn)
+
+	return nil
 }
 
 
-func connectRemoteUnsec(conn net.Conn){
-	port := 9000
-	fmt.Printf("client: recieved conn from: %v \n", conn.RemoteAddr().String())
-	serverConn, err := net.Dial("tcp6", fmt.Sprintf(":%d", port))
+func connectRemoteUnsec(serverConnPort int, conn net.Conn) error {
+
+	serverConn, err := net.Dial("tcp6", fmt.Sprintf(":%d", serverConnPort))
 	if err != nil{
-		log.Fatalf("client: error dialing to server on %d: %v", port, err)
+		return fmt.Errorf("client: error dialing to server on %d: %v", serverConnPort, err)
+	} else{
+		log.Printf("client: insecure connection to server successfully established on port: %d", serverConnPort)
 	}
+
 	tunnel.CreateTunnel(serverConn, conn)
+
+	return nil
 }

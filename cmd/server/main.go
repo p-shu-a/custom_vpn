@@ -82,7 +82,6 @@ func errorCollector(errCh <-chan error, done chan struct{}){
 	}
 }
 
-// Listen for incoming connections
 func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -132,15 +131,17 @@ func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	// start listener
 	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d",port))
 	if err != nil{
 		errCh <- fmt.Errorf("error starting listener (on-tls) on %d: %v", port, err)
 		return
 	} else{
-		log.Printf("Started non-TLS server on %d\n",port)
+		log.Printf("non-TLS server: Listening on %d\n",port)
 	}
 	defer listener.Close()
 
+	// capture cancel()
 	wg.Add(1)
 	go func(){
 		defer wg.Done()
@@ -149,6 +150,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 		errCh <-fmt.Errorf("%v: listener closed on port-%d due to SIGTERM", ctx.Err(), port)
 	}()
 
+	// start accepting connections
 	for {
 		clientConn, err := listener.Accept()
 		if err != nil{
