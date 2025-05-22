@@ -92,7 +92,7 @@ func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 		log.Println("TLS Server: TLS config successfully acquired")
 	}
 
-	listener, err := tls.Listen("tcp6", fmt.Sprintf(":%d", port), serverConfig)
+	listener, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), serverConfig)
 	if err != nil {
 		errCh <- fmt.Errorf("error while starting listener on %d: %v", port, err)
 		return
@@ -131,7 +131,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 	defer wg.Done()
 
 	// start listener
-	listener, err := net.Listen("tcp6", fmt.Sprintf(":%d",port))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d",port))
 	if err != nil{
 		errCh <- fmt.Errorf("error starting listener (on-tls) on %d: %v", port, err)
 		return
