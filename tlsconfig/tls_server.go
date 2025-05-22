@@ -3,6 +3,7 @@ package tlsconfig
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
 )
 
 /*
@@ -10,8 +11,17 @@ import (
 	- but since we don't have multiple server certs, decided against it.
 */
 func ServerTLSConfig() (*tls.Config, error) {
-	serverKeyLoc := "/Users/pranshu/git/custom_vpn/priv_keys/server.key"
-	serverPemLoc := "/Users/pranshu/git/custom_vpn/certs/server.pem"
+	
+	serverKeyLoc := os.Getenv("SERVER_KEY")
+	if serverKeyLoc == "" {
+		return nil, fmt.Errorf("failed to find server priv-key")
+	}
+
+	serverPemLoc := os.Getenv("SERVER_PEM")
+	if serverPemLoc == "" {
+		return nil, fmt.Errorf("failed to find server cert")
+	}
+
 	serverCert, err := tls.LoadX509KeyPair(serverPemLoc,serverKeyLoc)
 	if err != nil {
 		return nil, fmt.Errorf("tls_server: fatal error loading KeyPair: %v", err)

@@ -1,6 +1,5 @@
 bin/*
-certs/*
-!certs/README.MD
-priv_keys/*
-!priv_keys/README.MD
+ssl/*
+!ssl/README.MD
+!ssl/env_setup.sh
 .vscode/*

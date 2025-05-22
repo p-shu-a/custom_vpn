@@ -8,8 +8,15 @@ import (
 )
 
 func ClientTLSConfig() (*tls.Config, error){
+	
 	// get ca cert
-	caCert, err := os.ReadFile("/Users/pranshu/git/custom_vpn/certs/ca.pem")
+	caCertLoc := os.Getenv("CA_CERT_LOC")
+
+	if caCertLoc == "" {
+		return nil, fmt.Errorf("failed to find CA cert")
+	}
+
+	caCert, err := os.ReadFile(caCertLoc)
 	if err != nil{
 		 return nil, fmt.Errorf("error while reading ca cert: %v", err)
 	}
