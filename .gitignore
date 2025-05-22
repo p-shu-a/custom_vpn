@@ -2,4 +2,6 @@ bin/*
 ssl/*
 !ssl/README.MD
 !ssl/env_setup.sh
+!ssl/ca.cnf
+!ssl/server.cnf
 .vscode/*

@@ -32,7 +32,7 @@
         - above we created a self-signed cert. if you want to get a cert from a CA, you generate a CSR...
 - A CSR is a request to sign a certificate.
     - lets look at the command to generate a CSR first
-        - `openssl req -new -key homie.key -out homie.csr`
+        - `openssl req -new -key homie.key -out homie.csr` add a `-config config_file.cnf` if you have a config file
     - the requesting entity's private key is used to generate a CSR
         - the private key is used to "prove ownership of a corresponding public key"
             - which means, the public key is derived from the private key
