@@ -32,8 +32,15 @@
 - verify generated CSR with:
 `openssl req -in $HOME/.custom_vpn/ssl/server.csr -noout -text`
 
+- touch index.txt and serial.txt
+`touch $HOME/.custom_vpn/ssl/ca/serial.txt`
+`touch $HOME/.custom_vpn/ssl/ca/index.txt`
+
 - get the cert signed by the CA (generated in previous step):
 `openssl ca -config ssl/ca.cnf -policy signing_policy -extensions signing_req -out $HOME/.custom_vpn/ssl/server.pem -infiles $HOME/.custom_vpn/ssl/server.csr`
 
 - verify generated cert with:
 `openssl x509 -in $HOME/.custom_vpn/ssl/server.pem -text -noout`
+
+- this SO answer has a lot of details (was more useful than chatGPT):
+    - https://stackoverflow.com/questions/21297139/how-do-you-sign-a-certificate-signing-request-with-your-certification-authority

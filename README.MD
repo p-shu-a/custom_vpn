@@ -51,7 +51,9 @@
 - If you want to see the metadata of a cert, do:
     `openssl x509 -in homie.pem -text -noout`
 - CN is deprecated, gotta use Subject Alternate Names
-- Further Reading: https://letsencrypt.org/certificates/
+- Further Reading: 
+    - https://letsencrypt.org/certificates/
+    - https://stackoverflow.com/questions/21297139/how-do-you-sign-a-certificate-signing-request-with-your-certification-authority
 
 
 #### Converting simple TCP tunnel to TLS Tunnel
@@ -66,11 +68,5 @@
 ### ToDo:
 
 - add clean-restart to server logic...if server goes down, pops back up...continues service
-- implement flags. what are some decent flags to have?
-    - flags to specify certs?
 - modularize the code
-- export cert locations to env-vars.
-
-- how can i specify multiple different names in altnames of my cert?
-    - do he names have to be ips, or domains or can they be just a bunch of baloney?
-    - localhost is one. can "Tony's fine servers" be another?
+- cert management could certainly use another look. 
