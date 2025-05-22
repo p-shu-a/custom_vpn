@@ -16,7 +16,7 @@ ENV_VARS=$(cat <<EOF
 # >>> custom_vpn ENV START >>>
 export SERVER_PEM="$SSL_DIR/server.pem"
 export SERVER_KEY="$SSL_DIR/server.key"
-export CA_CERT_LOC="$SSL_DIR/ca.pem"
+export CA_CERT_LOC="$SSL_DIR/ca/ca.pem"
 # <<< custom_vpn ENV END <<<
 EOF
 )
