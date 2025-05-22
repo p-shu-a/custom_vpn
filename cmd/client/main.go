@@ -14,14 +14,16 @@ func main(){
 	clientListenerPort := flag.Int("p", 2022, "Port used to connect to client (via nc, socat)")
 	remoteServerAddress := flag.String("addr", "localhost", "Server IP Address")
 	transSec := flag.Bool("tls", true, "Use TLS or basic TCP")
+	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
 	flag.Parse()
-	if err := startLocalListener(*clientListenerPort, *transSec, *remoteServerAddress); err != nil {
+	
+	if err := startLocalListener(*clientListenerPort, *transSec, *remoteServerAddress, *caCertLoc); err != nil {
 		log.Fatalf("Client: %v", err)
 	}
 }
 
 // this function is blocking...and we want it to blocks
-func startLocalListener(clientListenerPort int, transSec bool, serverAddr string) error {
+func startLocalListener(clientListenerPort int, transSec bool, serverAddr string, caCertLoc string) error {
 
 	// this listener is local to the client machine
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d",clientListenerPort))
@@ -47,7 +49,7 @@ func startLocalListener(clientListenerPort int, transSec bool, serverAddr string
 		//no go-routine. we're only listening to a single conn
 		if transSec {
 			// provide TLS
-			if err := connectRemoteSecure(9001, conn, serverAddr); err != nil {
+			if err := connectRemoteSecure(9001, conn, serverAddr, caCertLoc); err != nil {
 				return err
 			}
 		} else{
@@ -65,9 +67,9 @@ func startLocalListener(clientListenerPort int, transSec bool, serverAddr string
 	- what should happen is that if the server kills the connection, you should be able to reattempt
 */
 
-func connectRemoteSecure(serverConnPort int, conn net.Conn, serverAddr string) error {
+func connectRemoteSecure(serverConnPort int, conn net.Conn, serverAddr string, caCertLoc string) error {
 	
-	clientConfg, err := tlsconfig.ClientTLSConfig()
+	clientConfg, err := tlsconfig.ClientTLSConfig(caCertLoc)
 	if err != nil{
 		return fmt.Errorf("error fetching client config: %v",err)
 	}

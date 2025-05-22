@@ -4,20 +4,25 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"os"
 )
 
-func ClientTLSConfig() (*tls.Config, error){
+func ClientTLSConfig(caCertLoc string) (*tls.Config, error){
 	
 	// get ca cert
-	caCertLoc := os.Getenv("CA_CERT_LOC")
-
+	if caCertLoc == "" {
+		log.Println("user provided no CA cert, fetching default")
+		caCertLoc = os.Getenv("CA_CERT_LOC")
+		log.Printf("fetched CA cert from: %v\n", caCertLoc)
+	}
+	
 	if caCertLoc == "" {
 		return nil, fmt.Errorf("failed to find CA cert")
 	}
 
 	caCert, err := os.ReadFile(caCertLoc)
-	if err != nil{
+	if err != nil {
 		 return nil, fmt.Errorf("error while reading ca cert: %v", err)
 	}
 	certPool := x509.NewCertPool()

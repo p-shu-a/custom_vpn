@@ -20,15 +20,20 @@
 - You'll be generating a self-signed cert here.
 - all output goes to `$HOME/.custom_vpn/ssl/ca/`
 `openssl genrsa -out $HOME/.custom_vpn/ssl/ca/ca.key 2048`
-`openssl req -x509 -new -nodes -key $HOME/.custom_vpn/ssl/ca/ca.key -sha256 -days 365 -out $HOME/.custom_vpn/ssl/ca/ca.pem -config ssl/ca.cnf`
+`openssl req -x509 -nodes -key $HOME/.custom_vpn/ssl/ca/ca.key -sha256 -days 365 -out $HOME/.custom_vpn/ssl/ca/ca.pem -config ssl/ca.cnf`
+- do not include the `-new` flag in the command above, creates a new x509 cert. we want a ca cert signed with the x509 standard 🥴
+- Test the cert's purpose:
+`openssl x509 -purpose -in $HOME/ssl/ca/ca.pem -inform PEM`
 
 ### Commands to generate the Server key, csr and signed cert
 - all output goes to `$HOME/.custom_vpn/ssl/`
 `openssl genrsa -out $HOME/.custom_vpn/ssl/server.key 2048`
 `openssl req -new -key $HOME/.custom_vpn/ssl/server.key -config ssl/server.cnf -out $HOME/.custom_vpn/ssl/server.csr`
-- verify genereate CSR with:
+- verify generated CSR with:
 `openssl req -in $HOME/.custom_vpn/ssl/server.csr -noout -text`
+
 - get the cert signed by the CA (generated in previous step):
-`openssl x509 -req -in $HOME/.custom_vpn/ssl/server.csr -CA $HOME/.custom_vpn/ssl/ca/ca.pem -CAkey $HOME/.custom_vpn/ssl/ca/ca.key -CAcreateserial -days 365 -sha256 -out $HOME/.custom_vpn/ssl/server.pem`
+`openssl ca -config ssl/ca.cnf -policy signing_policy -extensions signing_req -out $HOME/.custom_vpn/ssl/server.pem -infiles $HOME/.custom_vpn/ssl/server.csr`
+
 - verify generated cert with:
 `openssl x509 -in $HOME/.custom_vpn/ssl/server.pem -text -noout`
