@@ -1,4 +1,4 @@
-#### Lets walk through the architecture.
+#### Lets walk through the architecture
 - there is a client, which listens for connections on port 2022. upon receiving a conn, it dials my server on port 9000 and 9001 for TLS
 - I've got a server, listening on port 9000. 
     - upon receiving a connection, the server dials to port 22, ssh. 
