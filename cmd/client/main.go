@@ -111,14 +111,14 @@ func connectRemoteUnsec(serverConnPort int, conn net.Conn, serverAddr string) er
 }
 
 
-func connectRemoteQuic(caCertLoc string, remoteAddr string){
+func connectRemoteQuic(caCertLoc string, remoteAddr string) {
 
 	tlsConf, err := tlsconfig.ClientTLSConfig(caCertLoc)
 	if err != nil{
 		log.Printf("failed to fetch tls config for client: %v\n",tlsConf)
 		return
 	}
-	tlsConf.InsecureSkipVerify = true
+	
 
 	// this is the UDP address we'll be sending from and recieving data back
 	udpAddr := net.UDPAddr{
@@ -154,6 +154,9 @@ func connectRemoteQuic(caCertLoc string, remoteAddr string){
 	fmt.Printf("byte from server: %v",string(byteArr))
 
 	// handle streams
+	str, _ := qConn.OpenStream()
+	str.Write([]byte("hello from client"))
+	str.Close()
 	
 
 }

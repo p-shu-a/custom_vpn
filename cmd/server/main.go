@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"math/rand/v2"
-	// "math/rand/v2"
 	"crypto/tls"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
@@ -298,4 +297,13 @@ func handleStream(stream quic.Stream, wg *sync.WaitGroup, ctx context.Context, e
 	// if the conns are supposed to be used for vpns, should streams be forwards to some other endpoint?
 	
 	// read from the stream... what if the stream is being continuously written to?
+	b := make([]byte, 8)
+	for {
+		n, err := stream.Read(b)
+		log.Printf("from stream. n val: %v",n)
+		log.Printf("from stream. b val: %q",b[:n])
+		if err != nil { // could be an error could be io.EOF
+			break
+		}
+	}
 }
