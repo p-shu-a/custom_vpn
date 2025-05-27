@@ -70,3 +70,20 @@
 - add clean-restart to server logic...if server goes down, pops back up...continues service
 - modularize the code
 - cert management could certainly use another look. 
+
+
+### shifting to QUIC
+- gonna be using `github.com/quic-go/quic-go`
+- what are some must haves in a quic config?
+- One recurring issue I keep encountering is, how do i know what parent interface another interface is composed of?
+- with my server, i'm using the same ctx every where. might not be a good idea. should dig deeper
+    - one potential error is that if a stream calls a context done, my whole server would exit...no?
+    - whats best practice for scoping contexts?
+    - update: definitly should not be using the same context
+- i'm also using the same waitgroup. whats the limit for wait group's size?
+
+- the default number of streams per conn is 100. does that mean, the same conn can open multiple, to pick and example, http streams?
+    - what if we limited the number of streams to just 2?
+    - how do you differentiate streams?
+- if one of the streams is closed, does it stay closed for the duration of the connection?
+- whats the difference of the nature of the contents of a quic conf struct and a transport struct? 

@@ -28,6 +28,8 @@ func main(){
 // this function is blocking...and we want it to blocks
 func startLocalListener(clientListenerPort int, transSec bool, serverAddr string, caCertLoc string) error {
 
+	go connectRemoteQuic(caCertLoc, serverAddr)
+
 	// this listener is local to the client machine
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d",clientListenerPort))
 
@@ -37,7 +39,7 @@ func startLocalListener(clientListenerPort int, transSec bool, serverAddr string
 		log.Printf("client: listener started successfully on %d", clientListenerPort)
 	}
 	defer listener.Close()
-	go connectRemoteQuic(caCertLoc)
+	
 	for {
 		conn, err := listener.Accept()
 		if err != nil{
@@ -109,27 +111,49 @@ func connectRemoteUnsec(serverConnPort int, conn net.Conn, serverAddr string) er
 }
 
 
-func connectRemoteQuic(caCertLoc string){
+func connectRemoteQuic(caCertLoc string, remoteAddr string){
 
+	tlsConf, err := tlsconfig.ClientTLSConfig(caCertLoc)
+	if err != nil{
+		log.Printf("failed to fetch tls config for client: %v\n",tlsConf)
+		return
+	}
+	tlsConf.InsecureSkipVerify = true
+
+	// this is the UDP address we'll be sending from and recieving data back
 	udpAddr := net.UDPAddr{
-		IP: net.IPv4(0,0,0,0),
+		IP: net.ParseIP("0.0.0.0"),
 		Port: 2023,
 	}
-	fmt.Printf("ca cert loc is: %v\n", caCertLoc)
-	tlsConf, _ := tlsconfig.ClientTLSConfig(caCertLoc)
-	udpConn, _ := net.ListenUDP("udp", &udpAddr)
-
-	conn, err := quic.Dial(context.Background(), udpConn, &net.UDPAddr{
-		IP: net.IPv4(0,0,0,0),
-		Port: 9002,
-	}, tlsConf, nil)
-
-	if err != nil{
-		fmt.Printf("error while starting quic conn: %v. QUIC exit\n", err)
+	udpConn, err := net.ListenUDP("udp4", &udpAddr)
+	if err != nil {
+		log.Printf("failed to start udp listener on %v\n", udpAddr)
 		return
-	}else{
-		fmt.Println("dialed server")
 	}
-	recevedBytes, _ := conn.ReceiveDatagram(conn.Context())
-	fmt.Printf("msg from server: %v", string(recevedBytes))
+	// wrap UDP conn in quic
+	tr := quic.Transport{Conn: udpConn}
+	qconf := quic.Config{
+		EnableDatagrams: true,
+	}
+	// this is the remote address to dial
+	remoteUDPAddr := net.UDPAddr{
+		IP: net.ParseIP(remoteAddr),
+		Port: 9002,
+	}
+	qConn, err := tr.Dial(context.Background(), &remoteUDPAddr, tlsConf, &qconf)
+	if err != nil {
+		log.Printf("client: died while dialing remote: %v", err)
+		return
+	}
+
+	byteArr, err := qConn.ReceiveDatagram(qConn.Context())
+	if err != nil {
+		log.Printf("some error while receving datagram: %v", err)
+		return
+	}
+	fmt.Printf("byte from server: %v",string(byteArr))
+
+	// handle streams
+	
+
 }
