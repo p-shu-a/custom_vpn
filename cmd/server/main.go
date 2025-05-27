@@ -13,6 +13,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/quic-go/quic-go"
 )
 
 /*
@@ -56,6 +58,9 @@ func main(){
 	wg.Add(1)
 	go listenAndServeNoTLS(9000, ctx, errCh, &wg)
 
+	wg.Add(1)
+	go quicServer(errCh, ctx, 9002, &wg)
+
 	wg.Wait()
 	close(errCh)
 	/*
@@ -81,6 +86,7 @@ func errorCollector(errCh <-chan error, done chan struct{}){
 	}
 }
 
+// listen and server, with transport layer scurity
 func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -107,12 +113,7 @@ func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 		Added the wg.Add() to ensure the error gets printed to the screen before the program exits
 	*/
 	wg.Add(1)
-	go func(){
-		defer wg.Done()
-		<-ctx.Done()		// block here until cancel()
-		listener.Close()
-		errCh <-fmt.Errorf("%v: listener closed on port-%d due to sigterm", ctx.Err(), port)
-	}()
+	go captureCancel(wg, ctx, errCh, port, listener)
 
 	for {
 		clientConn, err := listener.Accept()
@@ -121,7 +122,7 @@ func listenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 				return
 			}
 			errCh <- fmt.Errorf("unable to accept connection: %v", err)
-			return
+			continue
 		}
 		go handleClientConn(clientConn, errCh)
 	}
@@ -142,12 +143,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 
 	// capture cancel()
 	wg.Add(1)
-	go func(){
-		defer wg.Done()
-		<-ctx.Done()
-		listener.Close()
-		errCh <-fmt.Errorf("%v: listener closed on port-%d due to SIGTERM", ctx.Err(), port)
-	}()
+	go captureCancel(wg, ctx, errCh, port, listener)
 
 	// start accepting connections
 	for {
@@ -157,7 +153,7 @@ func listenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 				return
 			}
 			errCh <- fmt.Errorf("server: unable to accept connection on %d: %v", port, err)
-			return
+			continue
 		}
 		go handleClientConn(clientConn, errCh)		
 	}
@@ -174,3 +170,78 @@ func handleClientConn(clientConn net.Conn, errCh chan<- error) {
 	}
 	tunnel.CreateTunnel(targetConn, clientConn)
 }
+
+/*
+	We're interesting in "interface satisfaction"
+	Perhaps its not accurate to use the "parent-child" terminology here, but indulge me.
+	net.Listener is a Closeable interface. Why? because it implements the Close() method.
+	And since our definition of a closeablelistener is "a closeable interface implements as close() method" and 
+	net.Listener implments close(), thus it satisfies.
+	Very Cool
+*/
+type CloseableListener interface {
+	Close() error
+}
+
+/* 
+	This function closes a listener, doesn't matter if its a TCP listener or a QUIC listener.
+	That is why we defined the CloseableListener interface.
+*/
+func captureCancel(wg *sync.WaitGroup, ctx context.Context, errCh chan<- error, port int, listener CloseableListener){
+	defer wg.Done()
+	<-ctx.Done()			// block here until cancel()
+	listener.Close()		// call our closeable listeners close() function
+	errCh <-fmt.Errorf("%v: listener closed on port-%d due to SIGTERM", ctx.Err(), port)
+}
+
+//###############
+// shifting to QUIC
+
+ // start a QUIC listener on a port
+func quicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.WaitGroup){ // a tls conf (so go back and modularize that)
+	udpAddr := net.UDPAddr{Port: 9002, IP: net.IPv4(0,0,0,0)}
+	udpConn, err := net.ListenUDP("udp", &udpAddr)
+	if err != nil{
+		errCh <- err
+		return
+	}
+	tlsConf, _ := tlsconfig.ServerTLSConfig()
+
+	// tr := &quic.Transport{
+	//  	Conn: udpConn,
+	// 	MaxI
+	// }
+	// listener, err := tr.Listen(tlsConf, nil)
+	
+	listener, err := quic.Listen(udpConn, tlsConf, nil)
+	if err != nil {
+		errCh <- fmt.Errorf("error starting quic listener on %v: %v", udpAddr.Port, err)
+	} else{
+		log.Printf("server: QUIC listener active on %d\n",port)
+	}
+
+	wg.Add(1)
+	go captureCancel(wg, ctx, errCh, port, listener)
+
+	for{
+		quicConn, err := listener.Accept(ctx)
+		if err != nil{
+			// some errors with the accepted conns are okay and can be continued past
+			// some errors must cause exit. How do i know which ones are which?
+			// should implement a isExitWorthy() function to properly identify the different errors and we ought to continue or exit.
+			continue;
+		}
+		go handleStream(quicConn, errCh)
+	}
+
+
+}
+
+func handleStream(conn quic.Connection, errCh chan<- error){
+	
+	log.Printf("Recieved a quic conn from %v\n", conn.RemoteAddr())
+
+	conn.SendDatagram([]byte("hello from server"))
+
+}
+

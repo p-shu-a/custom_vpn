@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
@@ -8,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+
+	"github.com/quic-go/quic-go"
 )
 
 func main(){
@@ -34,7 +37,7 @@ func startLocalListener(clientListenerPort int, transSec bool, serverAddr string
 		log.Printf("client: listener started successfully on %d", clientListenerPort)
 	}
 	defer listener.Close()
-
+	go connectRemoteQuic(caCertLoc)
 	for {
 		conn, err := listener.Accept()
 		if err != nil{
@@ -58,6 +61,7 @@ func startLocalListener(clientListenerPort int, transSec bool, serverAddr string
 				return err
 			}
 		}
+
 	}
 }
 
@@ -102,4 +106,30 @@ func connectRemoteUnsec(serverConnPort int, conn net.Conn, serverAddr string) er
 	tunnel.CreateTunnel(serverConn, conn)
 
 	return nil
+}
+
+
+func connectRemoteQuic(caCertLoc string){
+
+	udpAddr := net.UDPAddr{
+		IP: net.IPv4(0,0,0,0),
+		Port: 2023,
+	}
+	fmt.Printf("ca cert loc is: %v\n", caCertLoc)
+	tlsConf, _ := tlsconfig.ClientTLSConfig(caCertLoc)
+	udpConn, _ := net.ListenUDP("udp", &udpAddr)
+
+	conn, err := quic.Dial(context.Background(), udpConn, &net.UDPAddr{
+		IP: net.IPv4(0,0,0,0),
+		Port: 9002,
+	}, tlsConf, nil)
+
+	if err != nil{
+		fmt.Printf("error while starting quic conn: %v. QUIC exit\n", err)
+		return
+	}else{
+		fmt.Println("dialed server")
+	}
+	recevedBytes, _ := conn.ReceiveDatagram(conn.Context())
+	fmt.Printf("msg from server: %v", string(recevedBytes))
 }
