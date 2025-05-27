@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math/rand/v2"
+	// "math/rand/v2"
 	"crypto/tls"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
@@ -217,7 +218,7 @@ func quicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 		return
 	}
 	defer udpConn.Close()
-	
+
 	tlsConf, err := tlsconfig.ServerTLSConfig()
 	if err != nil{
 		errCh <- fmt.Errorf("failed to fetch TLS config: %v", err)
@@ -229,6 +230,7 @@ func quicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 	tr := &quic.Transport{
 	 	Conn: udpConn,
 	}
+	defer tr.Close()
 
 	// start a quic listener
 	listener, err := tr.Listen(tlsConf, nil)
@@ -245,6 +247,10 @@ func quicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 	for{
 		quicConn, err := listener.Accept(ctx)
 		if err != nil{
+			if errors.Is(err, net.ErrClosed){
+				log.Println("listener closed due to context cancel")
+				return
+			}
 			// some errors with the accepted conns are okay and can be continued past
 			// some errors must cause exit. How do i know which ones are which?
 			// should implement a isExitWorthy() function to properly identify the different errors and we ought to continue or exit.
@@ -290,4 +296,6 @@ func handleStream(stream quic.Stream, wg *sync.WaitGroup, ctx context.Context, e
 	// what are some general principles for reading IO?
 	// what is a stream composed of? i assume we've got headers, a body, what else?
 	// if the conns are supposed to be used for vpns, should streams be forwards to some other endpoint?
+	
+	// read from the stream... what if the stream is being continuously written to?
 }
