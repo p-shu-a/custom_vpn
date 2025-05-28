@@ -11,7 +11,8 @@ import (
 )
 
 /*
-	whats this puppy for?
+	Here are some shared functions and an interface.
+	These functions are called in both the QUIC and TCP package
 
 */
 
@@ -37,7 +38,6 @@ func CaptureCancel(wg *sync.WaitGroup, ctx context.Context, errCh chan<- error, 
 	listener.Close()		// call our closeable listeners close() function
 	errCh <-fmt.Errorf("%v: listener closed on port-%d due to SIGTERM", ctx.Err(), port)
 }
-
 
 /*
 	Helper method to return a context which will track shutdown/terms

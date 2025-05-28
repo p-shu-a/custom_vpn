@@ -15,20 +15,33 @@
 - if one of the streams is closed, does it stay closed for the duration of the connection?
 - whats the difference of the nature of the contents of a quic conf struct and a transport struct? 
 
+---
 
-give me a confirmation on these:
 so, when i multiplex over quic, i have to:
 - handle each incoming stream individually.
-- by default the quic-go lib allows for 100 streams per connection. i guess you can say that is the "bandwidth." in reality, the number of streams a server receives depends on how many were opened by the client. If the client only opens two streams, then thats all we'll have to deal with.
+- by default the quic-go lib allows for 100 streams per connection. 
+    - i guess you can say that is the "bandwidth." 
+    - in reality, the number of streams a server receives depends on how many were opened by the client.
+        - If the client only opens two streams, then thats all we'll have to deal with
 - each stream must be identified, and redirected based on the frame headers
-- if i have a stream dedicated to some HTTP service, which itself utilizes TLS over TCP. I think what would still work over QUIC. Quic is agnostic to stream content, once the stream is opened and redirected to endpoint, quic's role becomes about managing transmission. correct? In effect what i'm doing here is TCP over QUIC, no?
-- what happens if the packets containing the stream header are dropped? wouldn't they are important for redirection, wouldn't that cause HoL type issues?
-- also, a quic connection can handle datagrams and streams over the same connection.
+- if i have a stream dedicated to some HTTP service, which itself utilizes TLS over TCP.
+    - I think what would still work over QUIC. 
+    - Quic is agnostic to stream content
+        - once the stream is opened and redirected to endpoint, quic's role becomes about managing transmission. 
+    - In effect what i'm doing here is TCP over QUIC.
+- what happens if the packets containing the stream header are dropped? aren't they are important for redirection, wouldn't that cause HoL type issues?
+    - sort of. It could cause a HoL issue in that on particular stream, but not across streams
+    - also, quic handles the retransmission for you
+- there is a limit to QUIC packet size, but quic handles packet sizing for you
+- A quic connection can handle datagrams AND streams over the same connection.
+    - datagrams are great for low latency, fire-and-forget purposes. ddos?
 
 ### ToDo
 
 ### learnings
 
 ### questions
+
+- what is 0-rtt and 0.5-rtt. what should i use them?
 
 

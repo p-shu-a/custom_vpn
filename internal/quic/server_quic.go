@@ -2,14 +2,15 @@ package quic
 
 import (
 	"context"
-	"custom_vpn/tlsconfig"
-	"custom_vpn/internal/helpers"
 	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
 	"net"
 	"sync"
+
+	"custom_vpn/tlsconfig"
+	"custom_vpn/internal/helpers"
 
 	"github.com/quic-go/quic-go"
 )
