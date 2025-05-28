@@ -1,4 +1,12 @@
+### ToDo
+- do something meaning full with QUIC
+- add headers to opened streams
+- get jwt_auth working
+
+---
 ### QUIC Shift
+- why did we shift to quic?
+- where are we going?
 
 - Using `github.com/quic-go/quic-go`
 - what are some must haves in a quic config?
@@ -16,7 +24,7 @@
 - whats the difference of the nature of the contents of a quic conf struct and a transport struct? 
 
 ---
-
+### learings
 so, when i multiplex over quic, i have to:
 - handle each incoming stream individually.
 - by default the quic-go lib allows for 100 streams per connection. 
@@ -36,9 +44,7 @@ so, when i multiplex over quic, i have to:
 - A quic connection can handle datagrams AND streams over the same connection.
     - datagrams are great for low latency, fire-and-forget purposes. ddos?
 
-### ToDo
 
-### learnings
 
 ### questions
 

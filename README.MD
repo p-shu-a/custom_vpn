@@ -1,3 +1,5 @@
+##### update me!
+
 ### PROJECT NAME
 ---
 ### PROJECT DESCRIPTION
@@ -7,9 +9,11 @@
 ### USAGE
 
 ---
-### TODO
+### ToDo
 - add clean-restart to server logic...if server goes down, pops back up...continues service
-- modularize the code
+- modularize the code (always ongoing):
+    - saparate the contexts. cancel context should be saparate for a stream / conn fail
+    - refactor client
 - cert management could certainly use another look. 
 
 ---
@@ -20,4 +24,3 @@
     - a banner `SSH-2.0-OpenSSH_9.9` is presented to the connecting user
 - right now, i connect (via nc/socat) to my client. but in a "real" vpn app, this would be done through something like a desktop app.
     - login in, click "connect" and all the dialing to server is done via the app.
-    

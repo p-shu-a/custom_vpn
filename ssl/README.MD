@@ -1,4 +1,4 @@
-### wtf
+### wtf ---
 - You'll need to generate:
     - private keys
     - public certs
@@ -49,7 +49,7 @@
     - `openssl verify -CAfile ca.pem server.pem`
 
 ---
-#### generating keys and certs DUMP FROM THE OLD READ ME 
+#### generating keys and certs DUMP FROM THE OLD READ ME -- REFACTOR ME
 - a key is private
     - generate a key by doing:
         - `openssl genrsa -out homie.key 2048`

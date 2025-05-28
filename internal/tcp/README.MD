@@ -8,7 +8,6 @@
 - then onto a TLS handshake
 
 
-
 ### TLS
 - TLS is a protocol used to provide auth between parties, and encryption and integrity of data shared between them.
 - in TLS, for the handshake between two parites, asymetric encryption is used
