@@ -2,6 +2,10 @@
 - do something meaning full with QUIC
 - add headers to opened streams
 - get jwt_auth working
+- adding headers to streams. Type, IP, and Port
+- two possible directions:
+    - specific streams. 
+    - generic tunnel. how do we figure out the protocol employed by the underlying? (for the header type)
 
 ---
 ### QUIC Shift
@@ -24,7 +28,7 @@
 - whats the difference of the nature of the contents of a quic conf struct and a transport struct? 
 
 ---
-### learings
+### learnings
 so, when i multiplex over quic, i have to:
 - handle each incoming stream individually.
 - by default the quic-go lib allows for 100 streams per connection. 

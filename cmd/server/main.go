@@ -12,7 +12,7 @@ import (
 
 func main(){
 
-	ctx := helper.SetupShutdownHelper()
+	ctx := helpers.SetupShutdownHelper()
 	var wg sync.WaitGroup
 	
 	/* 
@@ -23,7 +23,7 @@ func main(){
 	*/
 	errCh := make(chan error)
 	done := make(chan struct{})		// this done channel was created to ensure the ordering of the logs
-	go helper.ErrorCollector(errCh, done)
+	go helpers.ErrorCollector(errCh, done)
 
 	// since we call both servers in go-routines
 	wg.Add(1)

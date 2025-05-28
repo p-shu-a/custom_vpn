@@ -61,7 +61,7 @@ func QuicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 	defer listener.Close()
 
 	wg.Add(1)
-	go helper.CaptureCancel(wg, ctx, errCh, port, listener)
+	go helpers.CaptureCancel(wg, ctx, errCh, port, listener)
 
 	for{
 		quicConn, err := listener.Accept(ctx)
@@ -94,7 +94,7 @@ func handleQuicConn(conn quic.Connection, errCh chan<- error, wg *sync.WaitGroup
 
 	for {
 		connID := rand.IntN(1000)
-		strCtx := context.WithValue(ctx, "parentConnId", connID)
+		strCtx := context.WithValue(ctx, helpers.ParentConnId, connID)
 		stream, err := conn.AcceptStream(strCtx)
 		if err != nil {
 			// can we survive this error and continue?
@@ -102,7 +102,7 @@ func handleQuicConn(conn quic.Connection, errCh chan<- error, wg *sync.WaitGroup
 			return
 		}
 		wg.Add(1)
-		go handleStream(stream, wg, ctx, errCh)
+		go handleStream(stream, wg, strCtx, errCh)
 	}
 }
 
@@ -110,7 +110,10 @@ func handleStream(stream quic.Stream, wg *sync.WaitGroup, ctx context.Context, e
 	defer wg.Done()
 	defer stream.Close()
 	// how would i get the stream's conn id? pass it via the context?
-	log.Printf("hey got a stream. stream id is %v and is parent conn's id is %v\n",stream.StreamID(), ctx.Value("parentConnId"))
+	log.Printf("hey got a stream. stream id is %v and is parent conn's id is %v\n",
+		stream.StreamID(),
+		ctx.Value(helpers.ParentConnId))
+
 	// what else do i do to a stream? whats the best way to read a stream?
 	// what are some general principles for reading IO?
 	// what is a stream composed of? i assume we've got headers, a body, what else?
