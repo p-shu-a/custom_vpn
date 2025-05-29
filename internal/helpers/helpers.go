@@ -13,7 +13,6 @@ import (
 /*
 	Here are some shared functions and an interface.
 	These functions are called in both the QUIC and TCP package
-
 */
 
 /*
@@ -57,7 +56,7 @@ func SetupShutdownHelper() context.Context {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-sigs // block here until there is something is recieved
+		<-sigs // block here until there is something is recieved...by something i mean a SIGINT OR SIGTERM
 		cancel()
 	}()
 	return ctx

@@ -16,6 +16,6 @@ basicConstraints = CA:FALSE
 
 [alt_names]
 DNS.1   = localhost
-DNS.2   = pranberry.local
+DNS.2   = # your .local hostname here
 IP.1    = 127.0.0.1
-IP.2    = 192.168.68.70
+IP.2    = # your server's ip-addr
