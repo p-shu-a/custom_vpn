@@ -1,15 +1,15 @@
-### Custom VPN
+## Custom VPN
 - The project isn't quite a vpn, but its almost a vpn. Title is asprirational
 - But the project is definitely a tunnel for securely communicating data from client to server
 
 ---
-#### Why does this project exist?
+### Why does this project exist?
 - The genesis of this project was a question, "what does the world see when I use a vpn?"
 - Figured it would teach me about VPN architecture, networking and allow me to explore Go in more depth
 - Ultimately, idea is that you'd be able to fire this client up from anywhere, and access the server running somewhere (device at home, some box in the sky, etc)
     - And you'd be able to do so without port forwarding on your home router
 
-##### Where we've been:
+#### Where we've been:
 - Initially, the project was simply a TCP tunnel which conencted a client and server (both running on localhost).
     - Port 2022 on the client. 9000 on the server
     - It didn't connect anything sexy either, just dialed to port 22 on the back end. presented a ssh banner.
@@ -37,7 +37,7 @@
         - added a shell script to mod the ~/.bashrc to export env vars and create dirs for the cert and keys to reside in
     - Required updates to the client to accept config options via flags
 
-##### Where we are:
+#### Where we are:
 - The project now implements communication via QUIC. We're using the `github.com/quic-go/quic-go` library
 - At this point:
     - the server (recieving on port 9002) sends the client a datagram
@@ -50,7 +50,7 @@
     - adding a tunnel for generic data
     - adding the `https://github.com/p-shu-a/jwt-auth` project as an auth service
 
-##### Where we're going:
+#### Where we're going:
 - External access between peers is pretty important
 - Have multiple peers
 - Most likely will implement wireguard. a vpn shouldn't be a TCP tunnel
