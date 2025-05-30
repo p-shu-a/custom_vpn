@@ -8,16 +8,17 @@
 #### ToDo
 - do something meaning full with QUIC
 - add headers to opened streams
-- get jwt_auth working
 - adding headers to streams. Type, IP, and Port
 - two possible directions:
     - specific streams. 
     - generic tunnel. how do we figure out the protocol employed by the underlying? (for the header type)
-- The context chain needs to be look at
+- get jwt_auth working
 - THERE IS AN ISSUE WITH THE TLS CERT FETCHING LOGIC
 - properly impement connetion id
+    - CONNDB SHOULDN'T BE JUST A MAP
 - implement connection resumption.
     - if the client changes ip, make them do a path_challenge
+- ERROR HANDLING IN CONN, STREAMS ACCEPT LOOPS NEED ATTENTION
 
 ---
 #### Learnings and question
