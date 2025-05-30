@@ -41,7 +41,7 @@ func ListenAndServeWithTLS(cancelCtx context.Context, errCh chan<- error, wg *sy
 		Added the wg.Add() to ensure the error gets printed to the screen before the program exits
 	*/
 	wg.Add(1)
-	go helpers.CaptureCancel(wg, cancelCtx, errCh, port, listener)
+	go helpers.CaptureCancel(cancelCtx, wg, errCh, port, listener)
 
 	for {
 		clientConn, err := listener.Accept()
@@ -71,7 +71,7 @@ func ListenAndServeNoTLS(cancelCtx context.Context, errCh chan<- error, wg *sync
 
 	// capture cancel()
 	wg.Add(1)
-	go helpers.CaptureCancel(wg, cancelCtx, errCh, port, listener)
+	go helpers.CaptureCancel(cancelCtx, wg, errCh, port, listener)
 
 	// start accepting connections
 	for {

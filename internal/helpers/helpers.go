@@ -31,7 +31,7 @@ type CloseableListener interface {
 	This function blocks, waiting for a cancel signal. Upon receving a signal, it closes the listener
 	Doesn't matter if its a TCP listener or a QUIC listener. See CloseableListener interface.
 */
-func CaptureCancel(wg *sync.WaitGroup, ctx context.Context, errCh chan<- error, port int, listener CloseableListener){
+func CaptureCancel(ctx context.Context, wg *sync.WaitGroup, errCh chan<- error, port int, listener CloseableListener){
 	defer wg.Done()
 	<-ctx.Done()			// block here until cancel()
 	listener.Close()		// call our closeable listeners close() function
