@@ -14,8 +14,10 @@
     - specific streams. 
     - generic tunnel. how do we figure out the protocol employed by the underlying? (for the header type)
 - The context chain needs to be look at
-- Adding header to the stream
 - THERE IS AN ISSUE WITH THE TLS CERT FETCHING LOGIC
+- properly impement connetion id
+- implement connection resumption.
+    - if the client changes ip, make them do a path_challenge
 
 ---
 #### Learnings and question

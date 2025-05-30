@@ -27,15 +27,9 @@ type CloseableListener interface {
 	Close() error
 }
 
-// refers to the connection ID for a QUIC connection. 
-// Since I'm checking the conn ID in streams, I figured i'd prepend the word "parent"
-// A stream belongs to a particular connection. Thus, that conn is the parent.
-type ctxKey string
-const ParentConnId ctxKey = "ParentConnId"
-
 /* 
-	This function closes a listener, doesn't matter if its a TCP listener or a QUIC listener.
-	That is why we defined the CloseableListener interface.
+	This function blocks, waiting for a cancel signal. Upon receving a signal, it closes the listener
+	Doesn't matter if its a TCP listener or a QUIC listener. See CloseableListener interface.
 */
 func CaptureCancel(wg *sync.WaitGroup, ctx context.Context, errCh chan<- error, port int, listener CloseableListener){
 	defer wg.Done()
@@ -45,11 +39,11 @@ func CaptureCancel(wg *sync.WaitGroup, ctx context.Context, errCh chan<- error, 
 }
 
 /*
-	Helper method to return a context which will track shutdown/terms
-	Basically, we're setting up the signal handling.
-	Create a channel which gets notified when SIGINT or SIGTERM are called
-	When a signal is picked up, we unblock and call the cancel(), cancelling the context
-	Cancelling the context leads to ctx.Done() being called in other places (the server funcs)
+	Helper method to return a context which will track shutdown/terminations.
+	Basically, we're setting up the exit signal handling.
+	The func creates a channel which gets notified when SIGINT or SIGTERM are called.
+	When a signal is picked up, we unblock and call the cancel(), cancelling the context.
+	Cancelling the context leads to ctx.Done() being called in other function. See CaptureCancel()
 */
 func SetupShutdownHelper() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -77,3 +71,10 @@ func ErrorCollector(errCh <-chan error, done chan struct{}){
 		log.Printf("ERROR: %v\n", err)
 	}
 }
+
+/* refers to the connection ID for a QUIC connection. 
+	Since I'm checking the conn ID in streams, I figured i'd prepend the word "parent"
+ 	A stream belongs to a particular connection. Thus, that conn is the parent.
+*/
+type ctxKey string
+const ParentConnId ctxKey = "ParentConnId"

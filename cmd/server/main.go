@@ -12,7 +12,10 @@ import (
 
 func main(){
 
-	ctx := helpers.SetupShutdownHelper()
+	// The returned returned context is a WithCancel() context
+	// Its purpose it to shutdown the entire server upon a closing signal
+	// It should not be used as the context per-stream or per-connection...i'd think
+	cancelCtx := helpers.SetupShutdownHelper()
 	var wg sync.WaitGroup
 	
 	/* 
@@ -27,13 +30,13 @@ func main(){
 
 	// since we call both servers in go-routines
 	wg.Add(1)
-	go tcp.ListenAndServeWithTLS(9001, ctx, errCh, &wg)
+	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, 9000)
 
 	wg.Add(1)
-	go tcp.ListenAndServeNoTLS(9000, ctx, errCh, &wg)
+	go tcp.ListenAndServeWithTLS(cancelCtx, errCh, &wg, 9001)
 
 	wg.Add(1)
-	go quic.QuicServer(errCh, ctx, 9002, &wg)
+	go quic.QuicServer(cancelCtx, errCh, &wg, 9002)
 
 	wg.Wait()
 	close(errCh)

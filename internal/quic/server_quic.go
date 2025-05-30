@@ -9,8 +9,8 @@ import (
 	"net"
 	"sync"
 
-	"custom_vpn/tlsconfig"
 	"custom_vpn/internal/helpers"
+	"custom_vpn/tlsconfig"
 
 	"github.com/quic-go/quic-go"
 )
@@ -24,8 +24,8 @@ import (
 	- handle streams
 */
 
-// start a QUIC listener on a port
-func QuicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.WaitGroup){ // a tls conf (so go back and modularize that)
+// start a QUIC listener on specified port
+func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int){
 	defer wg.Done()
 
 	udpAddr := net.UDPAddr{Port: 9002, IP: net.IPv4(0,0,0,0)}
@@ -43,16 +43,27 @@ func QuicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 		errCh <- fmt.Errorf("failed to fetch TLS config: %v", err)
 		return
 	}
-	/*	This is actually what makes the udp conn into a QUIC conn
-		transport is pretty central to QUIC-go
+
+	// A hash which keeps track of conn ids
+	connDb := make(map[int]bool, 100)
+	/*
+		This is actually what makes the udp conn into a QUIC conn.
+		transport is pretty central to QUIC-go.
+		should define connection id here.
 	*/
 	tr := &quic.Transport{
 	 	Conn: udpConn,
+		ConnContext: func(ctx context.Context, ci *quic.ClientInfo) (context.Context, error) {
+			connId := generateConnId(connDb)
+			return context.WithValue(ctx, helpers.ParentConnId, connId), nil
+		},
 	}
+
 	defer tr.Close()
 
 	// start a quic listener
 	listener, err := tr.Listen(tlsConf, nil)
+
 	if err != nil {
 		errCh <- fmt.Errorf("error starting quic listener on %v: %v", udpAddr.Port, err)
 	} else{
@@ -61,10 +72,13 @@ func QuicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 	defer listener.Close()
 
 	wg.Add(1)
-	go helpers.CaptureCancel(wg, ctx, errCh, port, listener)
+	go helpers.CaptureCancel(wg, cancelCtx, errCh, port, listener)
 
 	for{
-		quicConn, err := listener.Accept(ctx)
+		quicConn, err := listener.Accept(context.Background()) /// or cancelCtx /// this is the context which gets passed to the transport's ConnContext func:ctx param
+
+		//log.Printf("conn id after being set (from the conn):: %v", quicConn.Context().Value(helpers.ParentConnId))
+
 		if err != nil{
 			if errors.Is(err, net.ErrClosed){
 				log.Println("listener closed due to context cancel")
@@ -76,14 +90,14 @@ func QuicServer(errCh chan<- error, ctx context.Context, port int, wg *sync.Wait
 			continue;
 		}
 		wg.Add(1)
-		go handleQuicConn(quicConn, errCh, wg, ctx)
+		go handleQuicConn(quicConn, wg, errCh)
 	}
 }
 
 /*
 	a quic conn has multiple streams, we need to separate those streams. and act on em
 */
-func handleQuicConn(conn quic.Connection, errCh chan<- error, wg *sync.WaitGroup, ctx context.Context){
+func handleQuicConn(conn quic.Connection, wg *sync.WaitGroup, errCh chan<- error){
 	defer wg.Done()
 
 	log.Printf("Recieved a quic conn from %v\n", conn.RemoteAddr())
@@ -92,27 +106,27 @@ func handleQuicConn(conn quic.Connection, errCh chan<- error, wg *sync.WaitGroup
 		return
 	}
 
+	log.Printf("handleQuicConn. conn id via context:: %v\n", conn.Context().Value(helpers.ParentConnId))
+
 	for {
-		connID := rand.IntN(1000)
-		strCtx := context.WithValue(ctx, helpers.ParentConnId, connID)
-		stream, err := conn.AcceptStream(strCtx)
+		stream, err := conn.AcceptStream(context.Background())
 		if err != nil {
 			// can we survive this error and continue?
 			errCh <- fmt.Errorf("failed to accept stream: %v", err)
 			return
 		}
 		wg.Add(1)
-		go handleStream(stream, wg, strCtx, errCh)
+		go handleStream(stream, wg, errCh)
 	}
 }
 
-func handleStream(stream quic.Stream, wg *sync.WaitGroup, ctx context.Context, errCh chan<- error){
+func handleStream(stream quic.Stream, wg *sync.WaitGroup, errCh chan<- error){
 	defer wg.Done()
 	defer stream.Close()
 	// how would i get the stream's conn id? pass it via the context?
 	log.Printf("hey got a stream. stream id is %v and is parent conn's id is %v\n",
 		stream.StreamID(),
-		ctx.Value(helpers.ParentConnId))
+		stream.Context().Value(helpers.ParentConnId))
 
 	// what else do i do to a stream? whats the best way to read a stream?
 	// what are some general principles for reading IO?
@@ -127,6 +141,24 @@ func handleStream(stream quic.Stream, wg *sync.WaitGroup, ctx context.Context, e
 		log.Printf("from stream. b val: %q",b[:n])
 		if err != nil { // could be an error could be io.EOF
 			break
+		}
+	}
+	stream.Close()
+	log.Printf("stream closed goodbye")
+
+}
+
+/*
+	
+*/
+func generateConnId(connDb map[int]bool) int{
+	for {
+		connId := rand.IntN(1000)
+		if connDb[connId] {
+			continue
+		} else {
+			connDb[connId] = true
+			return connId
 		}
 	}
 }

@@ -14,8 +14,8 @@ import (
 	"custom_vpn/tunnel"
 )
 
-// listen and server, with transport layer scurity
-func ListenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg *sync.WaitGroup) {
+// Creates a TCP connection on the specified port. Utilizes transport layer scurity
+func ListenAndServeWithTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int) {
 	defer wg.Done()
 
 	serverConfig, err := tlsconfig.ServerTLSConfig()
@@ -41,7 +41,7 @@ func ListenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 		Added the wg.Add() to ensure the error gets printed to the screen before the program exits
 	*/
 	wg.Add(1)
-	go helpers.CaptureCancel(wg, ctx, errCh, port, listener)
+	go helpers.CaptureCancel(wg, cancelCtx, errCh, port, listener)
 
 	for {
 		clientConn, err := listener.Accept()
@@ -56,7 +56,7 @@ func ListenAndServeWithTLS(port int, ctx context.Context, errCh chan<- error, wg
 	}
 }
 
-func ListenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *sync.WaitGroup) {
+func ListenAndServeNoTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int) {
 	defer wg.Done()
 
 	// start listener
@@ -71,7 +71,7 @@ func ListenAndServeNoTLS(port int, ctx context.Context, errCh chan<- error, wg *
 
 	// capture cancel()
 	wg.Add(1)
-	go helpers.CaptureCancel(wg, ctx, errCh, port, listener)
+	go helpers.CaptureCancel(wg, cancelCtx, errCh, port, listener)
 
 	// start accepting connections
 	for {
