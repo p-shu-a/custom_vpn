@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand/v2"
 	"net"
 	"sync"
 
@@ -45,11 +44,11 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 		return
 	}
 
-	// A hash which keeps track of conn ids
-	// need a better way to do this? right now, the theoretical max  after a 100 conns, 
-	// how can i create UUIDs?
-	connDb := make(map[int]bool, 100)
-	errCh <- fmt.Errorf("len(capDB): %v", len(connDb))
+	uuid, err := helpers.GenUUID()
+	if err != nil {
+		errCh <- fmt.Errorf("failed to genereate UUID: %v", err)
+		return
+	}
 	/*
 		This is actually what makes the udp conn into a QUIC conn.
 		transport is pretty central to QUIC-go.
@@ -59,8 +58,8 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 	tr := &quic.Transport{
 	 	Conn: udpConn,
 		ConnContext: func(ctx context.Context, ci *quic.ClientInfo) (context.Context, error) {
-			connId := generateConnId(connDb)
-			return context.WithValue(ctx, helpers.ParentConnId, connId), nil
+			connId := uuid
+			return context.WithValue(ctx, helpers.ConnId, connId), nil
 		},
 	}
 	defer tr.Close()
@@ -124,7 +123,7 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 	defer wg.Done()
 	defer stream.Close()
 
-	log.Printf("hey got a stream. stream id is %v. Conn-Id is %v", stream.StreamID(), ctx.Value(helpers.ParentConnId))
+	log.Printf("hey got a stream. stream id is %v. Conn-Id is %v", stream.StreamID(), ctx.Value(helpers.ConnId))
 
 	// what else do i do to a stream? whats the best way to read a stream?
 	// what are some general principles for reading IO?
@@ -139,23 +138,6 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 		log.Printf("from stream. b val: %q",b[:n])
 		if err != nil { // could be an error could be io.EOF
 			break
-		}
-	}
-}
-
-/*
-	Returns a unique value between 1-101 (excluding) to assign to the conn
-	Values are stored in connDb.
-	THIS SHOULD CHANGE.
-*/
-func generateConnId(connDb map[int]bool) (int) {
-	for {
-		connId := rand.IntN(100)
-		if connDb[connId] {
-			continue
-		} else {
-			connDb[connId] = true
-			return connId
 		}
 	}
 }

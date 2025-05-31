@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 )
 
-func ConnectRemoteQuic(caCertLoc string, remoteAddr string) {
+func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, port int, remoteAddr, caCertLoc string) {
+	defer wg.Done()
 
 	tlsConf, err := tlsconfig.ClientTLSConfig(caCertLoc)
 	if err != nil{
-		log.Printf("failed to fetch tls config for client: %v\n",tlsConf)
+		errCh <- fmt.Errorf("quic: failed to fetch tls config for client: %v. Will not initiate quic connection", err)
 		return
 	}
 	
-
 	// this is the UDP address we'll be sending from and recieving data back
 	udpAddr := net.UDPAddr{
 		IP: net.ParseIP("0.0.0.0"),
@@ -26,7 +27,7 @@ func ConnectRemoteQuic(caCertLoc string, remoteAddr string) {
 	}
 	udpConn, err := net.ListenUDP("udp4", &udpAddr)
 	if err != nil {
-		log.Printf("failed to start udp listener on %v\n", udpAddr)
+		errCh <- fmt.Errorf("failed to start udp listener on %v", udpAddr)
 		return
 	}
 	// wrap UDP conn in quic
@@ -40,15 +41,18 @@ func ConnectRemoteQuic(caCertLoc string, remoteAddr string) {
 		IP: net.ParseIP(remoteAddr),
 		Port: 9002,
 	}
+
 	qConn, err := tr.Dial(context.Background(), &remoteUDPAddr, tlsConf, &qconf)
 	if err != nil {
-		log.Printf("client: died while dialing remote: %v", err)
+		errCh <- fmt.Errorf("quic client died while dialing remote: %v", err)
 		return
+	}else{
+		log.Printf("established successful QUIC conn to remote")
 	}
 
 	byteArr, err := qConn.ReceiveDatagram(qConn.Context())
 	if err != nil {
-		log.Printf("some error while receving datagram: %v", err)
+		errCh <- fmt.Errorf("encountered an error while receving datagram: %v", err)
 		return
 	}
 	fmt.Printf("byte from server: %v",string(byteArr))

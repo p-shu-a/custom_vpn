@@ -75,9 +75,3 @@
 - 
 - 
 ---
-### ToDo
-- add clean-restart to server logic...if server goes down, pops back up...continues service
-- modularize the code (always ongoing):
-    - saparate the contexts. cancel context should be saparate for a stream / conn fail. implement proper context chaning
-- cert management could certainly use another look.
-- CHRIST, ADD SOME TESTS ALREADY

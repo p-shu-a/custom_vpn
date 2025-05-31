@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
@@ -12,23 +13,21 @@ import (
 
 /*
 	Here are some shared functions and an interface.
-	These functions are called in both the QUIC and TCP package
+	These functions are called across the QUIC and TCP package
 */
 
 /*
-	We're interesting in "interface satisfaction"
-	Its not accurate to use the "parent-child" terminology here, but indulge me.
-	net.Listener is a Closeable interface. Why? because it implements the Close() method.
-	And since our definition of a closeablelistener is "a closeable interface implements as close() method" and
+	Since our definition of a CloseableListener is "an interface which implements a close() method", 
+	and both net.Listener and quic.listener have a close(), they are, thus, CloseableListeners
 	net.Listener implments close(), thus it satisfies.
-	Very Cool
+	This is "interface satisfaction". Very Cool
 */
 type CloseableListener interface {
 	Close() error
 }
 
 /* 
-	This function blocks, waiting for a cancel signal. Upon receving a signal, it closes the listener
+	This function blocks, waiting for a cancel signal. Upon receving a signal, it closes the passed listener
 	Doesn't matter if its a TCP listener or a QUIC listener. See CloseableListener interface.
 */
 func CaptureCancel(ctx context.Context, wg *sync.WaitGroup, errCh chan<- error, port int, listener CloseableListener){
@@ -41,8 +40,8 @@ func CaptureCancel(ctx context.Context, wg *sync.WaitGroup, errCh chan<- error, 
 /*
 	Helper method to return a context which will track shutdown/terminations.
 	Basically, we're setting up the exit signal handling.
-	The func creates a channel which gets notified when SIGINT or SIGTERM are called.
-	When a signal is picked up, we unblock and call the cancel(), cancelling the context.
+	The func creates a channel which gets notified when SIGINT or SIGTERM are called
+	When a signal is picked up, we unblock and call the cancel() on the server-level context.
 	Cancelling the context leads to ctx.Done() being called in other function. See CaptureCancel()
 */
 func SetupShutdownHelper() context.Context {
@@ -50,7 +49,7 @@ func SetupShutdownHelper() context.Context {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-sigs // block here until there is something is recieved...by something i mean a SIGINT OR SIGTERM
+		<-sigs // block here until a SIGINT or SIGTERM is recieved
 		cancel()
 	}()
 	return ctx
@@ -72,9 +71,25 @@ func ErrorCollector(errCh <-chan error, done chan struct{}){
 	}
 }
 
-/* refers to the connection ID for a QUIC connection. 
-	Since I'm checking the conn ID in streams, I figured i'd prepend the word "parent"
- 	A stream belongs to a particular connection. Thus, that conn is the parent.
+/*  
+	Refers to the connection ID for a QUIC connection. 
 */
 type ctxKey string
-const ParentConnId ctxKey = "ParentConnId"
+const ConnId ctxKey = "ConnId"
+
+
+/*
+	Returns a UUID.
+	RFC says uuid is 128bits (16*8) long.
+*/
+func GenUUID() (string, error){
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil{
+		return "", err
+	}
+	// why do this bitmasking business?
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+			b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
