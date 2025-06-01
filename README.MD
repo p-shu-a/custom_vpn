@@ -1,4 +1,4 @@
-### Custom VPN
+### VPN/Secure Tunnels
 - The project isn't quite a vpn, but its almost a vpn. Title is asprirational
 - But the project is definitely a tunnel for securely communicating data from client to server
 
@@ -58,7 +58,7 @@
 - Get certs from LetsEncrypt.
 
 ---
-### GETTING STARTED
+### Getting Started
 - It is assumed that you have go installed. This project was build using Go v.1.24.2
 - You'd have to do a few things:
     - run the `ssh/env_setup.sh`
@@ -67,11 +67,3 @@
     - This is a manual process, you have to make sure:
         - the right dirs are exported (feel free to make changes to the locations)
         - the certs generated are placed in the right location
-
-
----
-### USAGE... in progress
-- use socat to connect to the client port
-- 
-- 
----

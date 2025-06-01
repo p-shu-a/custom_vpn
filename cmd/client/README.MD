@@ -1,8 +1,5 @@
-### Client update:
-- client needs to look somewhat like server but with couple major changes:
-    - need to solicit connections on port 2022 from localhost
-
-#### client needs to:
-- dial to server via a tcp, tcp+tls, quic conn
-- implement an ErrorCollector function (or perhaps it should be an interace 🤔)
-- sensibly call conn establishing funcs via go-routines
+##### Having a hard time figuring out uses for the client
+- what do i want this thing to do?
+- i would like to build the server and client independantly
+- infact, i'd really like to focus on the server
+- the client feels like a reluctant necessity
