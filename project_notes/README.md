@@ -104,3 +104,9 @@
 - there is a limit to QUIC packet size, but quic handles packet sizing for you
 - A quic connection can handle datagrams AND streams over the same connection.
     - datagrams are great for low latency, fire-and-forget purposes. ddos?
+
+### questions to research
+- what are some must haves in a quic config?
+- what is 0-rtt and 0.5-rtt. why/when should i use them?
+- specifics of a quic handshake
+- is there a limit to the wait group size?

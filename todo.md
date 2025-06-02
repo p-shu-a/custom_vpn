@@ -19,9 +19,3 @@
 - connsolidate the two different tunnels... it VERY similar code, see if you can make the accepted params generic enough that one func can do both
     - net.conn to net.conn
     - net.conn to quic.stream
----
-### questions to research
-- what are some must haves in a quic config?
-- what is 0-rtt and 0.5-rtt. why/when should i use them?
-- specifics of a quic handshake
-- is there a limit to the wait group size? 
