@@ -1,10 +1,9 @@
-### wtf ---
+### Setting up the certs and key
 - You'll need to generate:
     - private keys
     - public certs
     - crs
     - cnf
-
 - Run the `env_setup.sh` file first
 
 ### What private keys need to be generated?
@@ -49,7 +48,7 @@
     - `openssl verify -CAfile ca.pem server.pem`
 
 ---
-#### generating keys and certs DUMP FROM THE OLD READ ME -- REFACTOR ME
+#### generating keys and certs DUMP FROM THE OLD README -- REFACTOR ME
 - a key is private
     - generate a key by doing:
         - `openssl genrsa -out homie.key 2048`

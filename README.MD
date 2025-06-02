@@ -59,7 +59,7 @@
 
 ---
 ### Getting Started
-- It is assumed that you have go installed. This project was build using Go v.1.24.2
+- It is assumed that you have Go installed. This project was build using Go v.1.24.2
 - You'd have to do a few things:
     - run the `ssh/env_setup.sh`
     - Generate the cert and keys for the CA & Server. Detailed instructions can be found in `ssl/README.MD`

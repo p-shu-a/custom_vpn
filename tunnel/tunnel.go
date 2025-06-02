@@ -4,8 +4,11 @@ import (
 	"io"
 	"net"
 	"sync"
+
+	"github.com/quic-go/quic-go"
 )
 
+// Use for copy between two net.conns
 func CreateTunnel(dst, src net.Conn){
 	var wg sync.WaitGroup
 	var once sync.Once
@@ -14,7 +17,6 @@ func CreateTunnel(dst, src net.Conn){
 		src.Close()
 	}
 
-	// we add wait groups here so writes can finish to the opposite end even when TERMs happen
 	wg.Add(1)
 	go func(){
 		defer wg.Done()
@@ -28,5 +30,31 @@ func CreateTunnel(dst, src net.Conn){
 		io.Copy(src, dst)
 		once.Do(closeConns)
 	}()
+	wg.Wait()
+}
+
+// Use for copy between QUIC Stream and net.conn
+func QuicTcpTunnel(conn net.Conn, stream quic.Stream){
+	var wg sync.WaitGroup
+	var once sync.Once
+	close := func(){
+		stream.Close()
+		conn.Close()
+	}
+	
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		io.Copy(stream, conn)
+		once.Do(close)
+	}()
+
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		io.Copy(conn, stream)
+		once.Do(close)
+	}()
+
 	wg.Wait()
 }

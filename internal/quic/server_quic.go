@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 
 	"custom_vpn/internal/helpers"
 	"custom_vpn/tlsconfig"
+	"custom_vpn/tunnel"
 
 	"github.com/quic-go/quic-go"
 )
@@ -101,10 +104,6 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 	defer wg.Done()
 
 	log.Printf("Recieved a quic conn from %v\n", conn.RemoteAddr())
-	if err := conn.SendDatagram([]byte("hello from server")); err != nil {
-		errCh <- fmt.Errorf("failed to send datagram to client: %v", err)
-		return
-	}
 
 	for {
 		stream, err := conn.AcceptStream(ctx)
@@ -113,6 +112,7 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 			errCh <- fmt.Errorf("failed to accept stream: %v", err)
 			return
 		}
+		log.Print("hey got a stream. handling it ")
 		wg.Add(1)
 		go handleStream(stream.Context(), stream, wg, errCh)
 	}
@@ -125,19 +125,38 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 
 	log.Printf("hey got a stream. stream id is %v. Conn-Id is %v", stream.StreamID(), ctx.Value(helpers.ConnId))
 
-	// what else do i do to a stream? whats the best way to read a stream?
-	// what are some general principles for reading IO?
-	// what is a stream composed of? i assume we've got headers, a body, what else?
-	// if the conns are supposed to be used for vpns, should streams be forwards to some other endpoint?
-	
-	// read from the stream... what if the stream is being continuously written to?
-	b := make([]byte, 8)
-	for {
-		n, err := stream.Read(b)
-		log.Printf("from stream. n val: %v",n)
-		log.Printf("from stream. b val: %q",b[:n])
-		if err != nil { // could be an error could be io.EOF
-			break
-		}
+	header := [4]byte{}
+	io.ReadFull(stream, header[:4])
+	log.Printf("header from stream: %v", string(header[:]))
+
+	// forward the stream to a dest based on the header
+	// b, _ := io.ReadAll(stream)
+	// log.Printf("reading from stream: %v", b)
+	// log.Printf(string(b))
+	proto := header[0:4]
+	log.Printf("proto: %q", string(proto))
+
+	switch strings.Replace(string(proto), "\x00", "", -1) {
+	case "HTTP":
+		log.Println("proto is http")
+		backService := dialService("127.0.0.1", 8080, errCh)
+		tunnel.QuicTcpTunnel(backService, stream)
+	case "SSH":
+		log.Println("proto is ssh")
+		backService := dialService("127.0.0.1", 22, errCh)
+		tunnel.QuicTcpTunnel(backService, stream)
 	}
+
+}
+
+func dialService(serviceAddr string, servicePort int, errCh chan<- error) net.Conn {
+
+	log.Printf("quic server: dialing service on %v", serviceAddr)
+
+	targetConn, err := net.Dial("tcp", fmt.Sprintf("%v:%v", serviceAddr, servicePort))
+	if err != nil{
+		errCh <- fmt.Errorf("error while connecting to ssh on server: %v", err)
+		return nil
+	}
+	return targetConn
 }

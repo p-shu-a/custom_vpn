@@ -51,6 +51,7 @@ func main(){
 	The user can establish multiple connections to this port. but why?
 	based on user's selection of TLS or not (transSec)
 	tries to establish remote conn with or without tls
+	We need to be able to start multiple listeners (HTTP, SSH, etc...)
 */
 func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, serverAddr, caCertLoc string, useQuic, useTls, useRawTcp bool) {
 	defer wg.Done()
@@ -78,7 +79,12 @@ func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPor
 
 		log.Printf("client: recieved connection from: %v\n", conn.RemoteAddr().String())
 	
-	
+		// this is NFG. why? the default, quic, does not need to be coupled to my TCP listener. hell, if its quic, we don't
+		// even need to do the TCP listener setup. my intuitons are struggling here.
+		// quic and tcp conns are fundamentally different. since QUIC can have multiple streams per conn.
+		// once a quic conns is established, all incomming requests to the local listner need to be handled as streams
+		// that just ain't so for tcp.
+		// every time a request comes in, it shouldn't just create a new quic conn (like it does now)
 		switch {
 		case useTls:
 			wg.Add(1)
@@ -88,7 +94,7 @@ func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPor
 			go tcp.ConnectRemoteUnsec(wg, errCh, 9000, conn, serverAddr)
 		default:
 			wg.Add(1)
-			go quic.ConnectRemoteQuic(wg, errCh, 9002, serverAddr, caCertLoc)
+			go quic.ConnectRemoteQuic(wg, errCh, 9002, serverAddr, caCertLoc, conn)
 		}
 
 	}
