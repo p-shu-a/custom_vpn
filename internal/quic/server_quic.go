@@ -123,30 +123,34 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 	defer stream.Close()
 	log.Printf("Recieved Stream. stream-id: %v. Conn-Id: %v", stream.StreamID(), ctx.Value(helpers.ConnId))
 
-	var streamHeader helpers.StreamHeader
-	// Deserialize the stream header
-	// get proto
-	io.ReadFull(stream, streamHeader.Proto[:])
-
-	// read next 16bytes for IP, conver to IP type
+	// buffers for reading from stream
+	var protoBuff [4]byte
 	var ipBuff [16]byte
+	var port uint16
+
+	// Deserialize by reading into buffers first
+	io.ReadFull(stream, protoBuff[:])
 	io.ReadFull(stream, ipBuff[:])
-	streamHeader.IP = net.IP(ipBuff[:])
+	binary.Read(stream, binary.BigEndian, &port)
+	// read from stream into var-port. since port is a uint16, two bytes will be read
 
-	// read from stream into stream headers' port. since port is a uint16, two bytes will be read
-	binary.Read(stream, binary.BigEndian, &streamHeader.Port)
 
-	log.Printf("proto from stream header: %q", string(streamHeader.Proto[:]))
-	log.Printf("IP from stream header: %q", streamHeader.IP.String())
-	log.Printf("port from stream header: %v", streamHeader.Port)
+	streamHeader := helpers.StreamHeader{
+		Proto: protoBuff,
+		IP: net.IP(ipBuff[:]),
+		Port: port,
+	}
+
+	log.Printf("from stream header. Proto: %v, IP: %v, Port: %v",
+		string(streamHeader.Proto[:]),
+		streamHeader.IP.String(),
+		streamHeader.Port)
 
 	switch string(streamHeader.Proto[:]) {
 	case "HTTP":
-		log.Println("proto is http")
 		backService := dialService("127.0.0.1", 8080, errCh)
 		tunnel.QuicTcpTunnel(backService, stream)
 	case "SSH":
-		log.Println("proto is ssh")
 		backService := dialService("127.0.0.1", 22, errCh)
 		tunnel.QuicTcpTunnel(backService, stream)
 	default:

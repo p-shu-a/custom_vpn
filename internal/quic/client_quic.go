@@ -2,7 +2,6 @@ package quic
 
 import (
 	"context"
-	"custom_vpn/internal/helpers"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
 	"encoding/binary"
@@ -60,32 +59,23 @@ func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, remotePort int, r
 func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, incomingPort int, remoteAddr *net.UDPAddr){
 	// add a header based on local port num use incomming port to determing header
 
-	var header helpers.StreamHeader
 	proto, err := determineProto(incomingPort)
 	if err != nil{
 		errCh <- err
 		return
 	}
-	log.Printf("proto is : %q", string(proto))
 
-	copy(header.Proto[:], proto)
-	header.Port = uint16(remoteAddr.Port)
-	log.Printf("header port is : %v", header.Port)
-
-
-	// whats the diff between openstreamsync and openstream?
 	str, err := qConn.OpenStream()
 	if err != nil{
 		errCh <- fmt.Errorf("failed to open stream: %v", err)
 		return
 	}
 	
-	str.Write(header.Proto[:])
+	str.Write(proto)
 	str.Write(remoteAddr.IP.To16())
-	binary.Write(str, binary.BigEndian, header.Port)
+	binary.Write(str, binary.BigEndian, uint16(remoteAddr.Port))
 
 	tunnel.QuicTcpTunnel(conn, str)
-	
 }
 
 func determineProto(port int) ([]byte,error) {
@@ -94,5 +84,5 @@ func determineProto(port int) ([]byte,error) {
 	} else if port == 2024{
 		return []byte("SSH"), nil
 	} 
-	return nil, fmt.Errorf("unsupported protocol-type")
+	return nil, fmt.Errorf("unsupported protocol")
 }
