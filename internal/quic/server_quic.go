@@ -119,20 +119,26 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 }
 
 func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, errCh chan<- error){
-
 	defer wg.Done()
 	defer stream.Close()
-
-	log.Printf("hey got a stream. stream id is %v. Conn-Id is %v", stream.StreamID(), ctx.Value(helpers.ConnId))
+	log.Printf("Recieved Stream. stream-id: %v. Conn-Id: %v", stream.StreamID(), ctx.Value(helpers.ConnId))
 
 	var streamHeader helpers.StreamHeader
+	// Deserialize the stream header
+	// get proto
 	io.ReadFull(stream, streamHeader.Proto[:])
-	io.ReadFull(stream, streamHeader.IP[:])
-	io.ReadFull(stream, streamHeader.Port[:])
-	ip := net.IP(streamHeader.IP[:])
+
+	// read next 16bytes for IP, conver to IP type
+	var ipBuff [16]byte
+	io.ReadFull(stream, ipBuff[:])
+	streamHeader.IP = net.IP(ipBuff[:])
+
+	// read from stream into stream headers' port. since port is a uint16, two bytes will be read
+	binary.Read(stream, binary.BigEndian, &streamHeader.Port)
+
 	log.Printf("proto from stream header: %q", string(streamHeader.Proto[:]))
-	log.Printf("IP from stream header: %q", ip.String())
-	log.Printf("port from stream header: %v", binary.LittleEndian.Uint16(streamHeader.Port[:]))
+	log.Printf("IP from stream header: %q", streamHeader.IP.String())
+	log.Printf("port from stream header: %v", streamHeader.Port)
 
 	switch string(streamHeader.Proto[:]) {
 	case "HTTP":

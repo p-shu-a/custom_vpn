@@ -66,21 +66,12 @@ func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, inco
 		errCh <- err
 		return
 	}
-	log.Printf("proto is : %q", string(proto) )
-	copy(header.Proto[:], proto)
-	
+	log.Printf("proto is : %q", string(proto))
 
-	// the use of the following two is mostly useless.
-	// for starters, the remote IP and Port are already known, so it feels that encoding them into the stream is useless
-	// these values will tell the server nothing about where to transfer this data.
-	remoteIP := remoteAddr.IP
-	log.Printf("remote ip si: %v", remoteIP)
-	copy(header.IP[:], remoteIP)  // this could be an issue. remote IP is of IP type, what is that? ans: https://pkg.go.dev/net#IP its a []byte
-	remotePort := remoteAddr.Port
-	log.Printf("remote port is: %v", remotePort)
-	binary.LittleEndian.PutUint16(header.Port[:], uint16(remotePort))
-	//regarding the above: you can't put an int (remotePort) into a []byte slice or array. you have two options:
-	// conver to a string (like we do with proto), or do the above. 
+	copy(header.Proto[:], proto)
+	header.Port = uint16(remoteAddr.Port)
+	log.Printf("header port is : %v", header.Port)
+
 
 	// whats the diff between openstreamsync and openstream?
 	str, err := qConn.OpenStream()
@@ -90,8 +81,8 @@ func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, inco
 	}
 	
 	str.Write(header.Proto[:])
-	str.Write(header.IP[:])
-	str.Write(header.Port[:])
+	str.Write(remoteAddr.IP.To16())
+	binary.Write(str, binary.BigEndian, header.Port)
 
 	tunnel.QuicTcpTunnel(conn, str)
 	

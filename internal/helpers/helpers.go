@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"sync"
@@ -94,10 +95,9 @@ func GenUUID() (string, error){
 			b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
-
 // header should be: Type (4byte), IP (4bytes for ipv4, 16bytes for ipv6), and Port (1byte)
 type StreamHeader struct{
 	Proto [4]byte
-	IP 	  [16]byte   // maybe this should be of net.ip type
-	Port  [2]byte   // port could be anywhere from 0-5digits long, but int digits and since its a port value, it'll be unit16 (16bits)
+	IP 	  net.IP
+	Port  uint16   // port could be anywhere from 0-5digits long int. uint16 (16bit, positive ints) work perfectly since ports only get up to 65535
 }
