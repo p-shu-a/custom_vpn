@@ -2,8 +2,10 @@ package quic
 
 import (
 	"context"
+	"custom_vpn/internal/helpers"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -21,7 +23,7 @@ func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, remotePort int, r
 		return
 	}
 	
-	// this is the UDP address we'll be sending from and recieving data back
+	// this is the UDP address we'll be sending from and recieving data back to
 	udpAddr := net.UDPAddr{
 		IP: net.ParseIP("0.0.0.0"),
 		Port: 2023,
@@ -51,27 +53,55 @@ func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, remotePort int, r
 	}
 
 	// handle streams
-	createStream(errCh, qConn, conn)
+	createStream(errCh, qConn, conn, 2022, &udpAddr)
 
 }
 
-func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn){
-	// add a header based on local port num
-	// header should be: Type (4byte), IP (4bytes for ipv4, 16bytes for ipv6), and Port (1byte)
-	header := make([]byte, 4)
-	copy(header[0:4], []byte("HTTP"))
-	// copy(header[5:10], []byte("127.0.0.1"))			// this is garbage. we're hard coding it
-	// copy(header[10:], []byte("8080"))				// 
+func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, incomingPort int, remoteAddr *net.UDPAddr){
+	// add a header based on local port num use incomming port to determing header
+
+	var header helpers.StreamHeader
+	proto, err := determineProto(incomingPort)
+	if err != nil{
+		errCh <- err
+		return
+	}
+	log.Printf("proto is : %q", string(proto) )
+	copy(header.Proto[:], proto)
+	
+
+	// the use of the following two is mostly useless.
+	// for starters, the remote IP and Port are already known, so it feels that encoding them into the stream is useless
+	// these values will tell the server nothing about where to transfer this data.
+	remoteIP := remoteAddr.IP
+	log.Printf("remote ip si: %v", remoteIP)
+	copy(header.IP[:], remoteIP)  // this could be an issue. remote IP is of IP type, what is that? ans: https://pkg.go.dev/net#IP its a []byte
+	remotePort := remoteAddr.Port
+	log.Printf("remote port is: %v", remotePort)
+	binary.LittleEndian.PutUint16(header.Port[:], uint16(remotePort))
+	//regarding the above: you can't put an int (remotePort) into a []byte slice or array. you have two options:
+	// conver to a string (like we do with proto), or do the above. 
 
 	// whats the diff between openstreamsync and openstream?
-	str, err := qConn.OpenStream()   // make stream uni for now
+	str, err := qConn.OpenStream()
 	if err != nil{
 		errCh <- fmt.Errorf("failed to open stream: %v", err)
-	}else{
-		log.Print("successfully opened stream to remote")
+		return
 	}
 	
-	str.Write(header)
+	str.Write(header.Proto[:])
+	str.Write(header.IP[:])
+	str.Write(header.Port[:])
+
 	tunnel.QuicTcpTunnel(conn, str)
 	
+}
+
+func determineProto(port int) ([]byte,error) {
+	if port == 2022{
+		return []byte("HTTP"), nil			// these values should be consts/enums
+	} else if port == 2024{
+		return []byte("SSH"), nil
+	} 
+	return nil, fmt.Errorf("unsupported protocol-type")
 }

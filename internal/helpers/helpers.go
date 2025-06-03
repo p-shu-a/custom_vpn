@@ -17,7 +17,7 @@ import (
 */
 
 /*
-	Since our definition of a CloseableListener is "an interface which implements a close() method", 
+	Since our definition of a CloseableListener is "an interface which implements a close() method",
 	and both net.Listener and quic.listener have a close(), they are, thus, CloseableListeners
 	net.Listener implments close(), thus it satisfies.
 	This is "interface satisfaction". Very Cool
@@ -74,8 +74,8 @@ func ErrorCollector(errCh <-chan error, done chan struct{}){
 /*  
 	Refers to the connection ID for a QUIC connection. 
 */
-type ctxKey string
-const ConnId ctxKey = "ConnId"
+type CtxKey string
+const ConnId CtxKey = "ConnId"
 
 
 /*
@@ -92,4 +92,12 @@ func GenUUID() (string, error){
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 			b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
+
+// header should be: Type (4byte), IP (4bytes for ipv4, 16bytes for ipv6), and Port (1byte)
+type StreamHeader struct{
+	Proto [4]byte
+	IP 	  [16]byte   // maybe this should be of net.ip type
+	Port  [2]byte   // port could be anywhere from 0-5digits long, but int digits and since its a port value, it'll be unit16 (16bits)
 }

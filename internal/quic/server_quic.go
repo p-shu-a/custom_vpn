@@ -2,12 +2,12 @@ package quic
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"strings"
 	"sync"
 
 	"custom_vpn/internal/helpers"
@@ -112,7 +112,7 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 			errCh <- fmt.Errorf("failed to accept stream: %v", err)
 			return
 		}
-		log.Print("hey got a stream. handling it ")
+		// log.Print("hey got a stream. handling it ")
 		wg.Add(1)
 		go handleStream(stream.Context(), stream, wg, errCh)
 	}
@@ -125,18 +125,16 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 
 	log.Printf("hey got a stream. stream id is %v. Conn-Id is %v", stream.StreamID(), ctx.Value(helpers.ConnId))
 
-	header := [4]byte{}
-	io.ReadFull(stream, header[:4])
-	log.Printf("header from stream: %v", string(header[:]))
+	var streamHeader helpers.StreamHeader
+	io.ReadFull(stream, streamHeader.Proto[:])
+	io.ReadFull(stream, streamHeader.IP[:])
+	io.ReadFull(stream, streamHeader.Port[:])
+	ip := net.IP(streamHeader.IP[:])
+	log.Printf("proto from stream header: %q", string(streamHeader.Proto[:]))
+	log.Printf("IP from stream header: %q", ip.String())
+	log.Printf("port from stream header: %v", binary.LittleEndian.Uint16(streamHeader.Port[:]))
 
-	// forward the stream to a dest based on the header
-	// b, _ := io.ReadAll(stream)
-	// log.Printf("reading from stream: %v", b)
-	// log.Printf(string(b))
-	proto := header[0:4]
-	log.Printf("proto: %q", string(proto))
-
-	switch strings.Replace(string(proto), "\x00", "", -1) {
+	switch string(streamHeader.Proto[:]) {
 	case "HTTP":
 		log.Println("proto is http")
 		backService := dialService("127.0.0.1", 8080, errCh)
@@ -145,6 +143,8 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 		log.Println("proto is ssh")
 		backService := dialService("127.0.0.1", 22, errCh)
 		tunnel.QuicTcpTunnel(backService, stream)
+	default:
+		errCh <- fmt.Errorf("failed to identify stream protocol")
 	}
 
 }
