@@ -35,6 +35,9 @@ func main(){
 
 	var wg sync.WaitGroup
 
+	wg.Add(1)
+	// add local listener calls to multiple ports here
+	// also add context to start listner, just like with server, to kill client if sigterm is sent
 	startLocalListener(errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *useQuic, *useTls, *useRawTcp)
 
 	wg.Wait()

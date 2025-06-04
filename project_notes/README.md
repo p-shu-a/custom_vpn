@@ -105,6 +105,26 @@
 - A quic connection can handle datagrams AND streams over the same connection.
     - datagrams are great for low latency, fire-and-forget purposes. ddos?
 
+### Issues with QUIC streams
+- My Plan was to open a different port for each service on the client device. Then have the user make requests to the different ports.
+    - That is: client opens port 2023 for ssh , 2022 for http. if user is making http request, they send request to 2022
+    - requests to each different port is sent to the server in a distinct stream
+- There are few problems with this:
+    - as you add support for more protocols, you have to setup listeners for each port. this is cumbersome. 
+        - multiple similar function calls where the only diff is a different port
+    - my only form of "validatation" is that I relate a port to a specific protocol. this isn't a guarantee of anything...
+    - a user making a request to a port doesn't actually mean they are sending whatever type of request I expect on that port
+        - ssh port 2023 could recieve HTTP data
+    - This is bad UX. User has to keep track of each different port. gonna lead to mistakes
+    - Right now, stream header is compose of Protocol(4b), IP(16b), Port(2b)
+        - but the IP and Port values are for the server, not for the service endpoint. Their inclusion is effectively useless
+        - what i need is to send the URL+Port of the endpoint service. for most of my cases, the url would stay the same since the server is running the services, but the ports are deffs different. and if we're forwarding requests beyond the server, then the IP is deffs uselless
+        - I could read the request, but that is a privacy violation. and it wouldn't be possible if even the incoming request was encrypted
+    - Overall, this jsut feels like a lot of work to forward requests.
+- If only there was some way to forward all traffic through? HMMMM
+    - enter TUN!
+    - i'm not sure about the specifics, but i assume that all my data, or just data from a few select ports, or even just data headed to a specific remote address, can be transported through the new interface
+
 ### questions to research
 - what are some must haves in a quic config?
 - what is 0-rtt and 0.5-rtt. why/when should i use them?

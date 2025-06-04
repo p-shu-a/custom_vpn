@@ -161,7 +161,7 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 
 func dialService(serviceAddr string, servicePort int, errCh chan<- error) net.Conn {
 
-	log.Printf("quic server: dialing service on %v", serviceAddr)
+	log.Printf("quic server: dialing service on %v:%v", serviceAddr, servicePort)
 
 	targetConn, err := net.Dial("tcp", fmt.Sprintf("%v:%v", serviceAddr, servicePort))
 	if err != nil{
