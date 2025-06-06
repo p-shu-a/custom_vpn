@@ -78,6 +78,9 @@ func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, inco
 	tunnel.QuicTcpTunnel(conn, str)
 }
 
+// This is not effective validation.
+// Values defining protocols should be constants shared across client and server
+// and should live in a helper
 func determineProto(port int) ([]byte,error) {
 	if port == 2022{
 		return []byte("HTTP"), nil			// these values should be consts/enums

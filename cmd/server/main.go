@@ -3,10 +3,9 @@ package main
 import (
 	"log"
 	"sync"
-	
 	"custom_vpn/internal/helpers"
-	"custom_vpn/internal/tcp"
 	"custom_vpn/internal/quic"
+	"custom_vpn/internal/tcp"
 )
 
 
@@ -28,7 +27,6 @@ func main(){
 	done := make(chan struct{})		// this done channel was created to ensure the ordering of the logs
 	go helpers.ErrorCollector(errCh, done)
 
-	// since we call both servers in go-routines
 	wg.Add(1)
 	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, 9000)
 
