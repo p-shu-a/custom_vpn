@@ -84,7 +84,7 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 
 		if err != nil{
 			if errors.Is(err, net.ErrClosed) {
-				log.Println("listener closed")
+				errCh <- err
 				return	// just because the listener is closed, doesn't mean that we should return. there could be active streams
 			}
 			// some errors with the accepted conns are okay and can be continued past

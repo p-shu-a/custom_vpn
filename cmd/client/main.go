@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"sync"
 
+	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
+	"custom_vpn/tun"
 )
 
 /*
@@ -27,7 +30,11 @@ func main(){
 	useTls := flag.Bool("tls", false, "Use TLS")
 	useQuic := flag.Bool("quic", true, "Use QUIC protocol (default). If false, TCP+TLS will be used")
 	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
+	tunMode := flag.Bool("tun",false, "start client as TUN")
 	flag.Parse()
+
+
+	ctx := helpers.SetupShutdownHelper()
 
 	errCh := make(chan error, 1)
 	done := make(chan struct{})
@@ -35,15 +42,32 @@ func main(){
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	// add local listener calls to multiple ports here
-	// also add context to start listner, just like with server, to kill client if sigterm is sent
-	startLocalListener(errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *useQuic, *useTls, *useRawTcp)
+	clientTunDetails, err := tun.ConfigureTUN(config.ClientVIP, config.ServerVIP)
+	if err != nil {
+		log.Fatalf("failed to configure TUN for client: %v", err)
+	}
+	log.Printf("created and configured %v for client with vip %v", clientTunDetails.TunIface.Name(), clientTunDetails.LocalVIP.String())
+
+
+	switch *tunMode{
+	case true:
+		log.Printf(" TUN mode is active: %v", tunMode)
+		wg.Add(1)
+		go tun.ForwardToServer(ctx, errCh, &wg, clientTunDetails, *caCertLoc)
+
+	default:
+		log.Printf(" TUN mode is NOT active: %v", tunMode)
+
+		wg.Add(1)
+		// add local listener calls to multiple ports here
+		// also add context to start listner, just like with server, to kill client if sigterm is sent
+		go startLocalListener(ctx, errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *useQuic, *useTls, *useRawTcp)
+	}
 
 	wg.Wait()
 	
-	<-done
 	close(errCh)
+	<-done
 
 	log.Print("all listeners stopped...exiting client")
 }
@@ -56,7 +80,10 @@ func main(){
 	tries to establish remote conn with or without tls
 	We need to be able to start multiple listeners (HTTP, SSH, etc...)
 */
-func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, serverAddr, caCertLoc string, useQuic, useTls, useRawTcp bool) {
+func startLocalListener(ctx context.Context, errCh chan<-error, wg *sync.WaitGroup, 
+						clientListenerPort int, serverAddr, caCertLoc string, 
+						useQuic, useTls, useRawTcp bool) {
+
 	defer wg.Done()
 
 	// Start a local listener on the provided port
@@ -101,5 +128,4 @@ func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPor
 		}
 
 	}
-
 }

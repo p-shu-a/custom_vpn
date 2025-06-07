@@ -1,11 +1,13 @@
 package main
 
 import (
-	"log"
-	"sync"
+	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
+	"custom_vpn/tun"
+	"log"
+	"sync"
 )
 
 
@@ -26,6 +28,14 @@ func main(){
 	errCh := make(chan error)
 	done := make(chan struct{})		// this done channel was created to ensure the ordering of the logs
 	go helpers.ErrorCollector(errCh, done)
+
+	serverTunDetails, err := tun.ConfigureTUN(config.ServerVIP, config.ClientVIP)
+	if err != nil {
+		log.Fatalf("failed to configure TUN for client: %v", err)
+	}
+	log.Printf("created and configured %v for client with VIP %v", serverTunDetails.TunIface.Name(), serverTunDetails.LocalVIP.String())
+	wg.Add(1)
+	go tun.InterceptFromClient(cancelCtx, errCh, &wg, 9005, serverTunDetails)
 
 	wg.Add(1)
 	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, 9000)

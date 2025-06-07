@@ -12,7 +12,7 @@
     - you should be able to keep sending value until one side is closed.
     - once a timeout does happen, the UDP port on the client should be come free to recieve conections again. right now, the client requires a restart
 ---
-### ToDo- client
+### ToDo- client- honestly, the client sucks! even the client code sucks!
 - the logic for which protocol to use to talk to server, should be decoubled from the listener starter
     - the client needs to expose multiple different ports for the different services (http, ssh, etc)
 - maybe drop support for TCP altogether.
@@ -22,3 +22,10 @@
 - connsolidate the two different tunnels... it VERY similar code, see if you can make the accepted params generic enough that one func can do both
     - net.conn to net.conn
     - net.conn to quic.stream
+
+
+### config
+- ports, IPs, options all should live in `config/`
+- cert locaions
+- env vars
+-

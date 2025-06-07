@@ -34,6 +34,7 @@ func ServerTLSConfig() (*tls.Config, error) {
 		MinVersion: tls.VersionTLS13,
 		// this key takes a slice of certs, you'd add more here if there were multiple domains. smart enough to do SNI for you
 		Certificates: []tls.Certificate{serverCert},
+		NextProtos:   []string{"vpn-quic"},
 		Time: nil,
 	}
 
