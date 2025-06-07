@@ -135,20 +135,19 @@
     - infact, this can't really happen if I use QUIC. i have to steer the packet to the TUN
 #### here is how i think it'll go:
 - my client creates a TUN, and adds a route saying "forward traffic going to X subnets/my server through this TUN". this makes merealize, the more selective I want to about steering data to specifc outgoing subnets, the more routes i will need to add.
-- my server have to create a interface too, but to receive. basically the other end of the pipe. but what if there is no end of the pipe?but does the server need to add any routes? probably yes, back to the client.
+- my server have to create a interface too, but to receive. basically the other end of the pipe.
+    - but does the server need to add any routes? yes, back to the client.
 - this needs pipe needs to be encrypted. how? is the pipe encrypted or the data within?
-    - where does the app sit, in fornt of the TUN or behind? behind i assume
-    - so the app sits behind the TUN (not in front). 
-        - that that point i think, the server could just recieve on its default interface
-        - if the server didn't have the respoinsibility to send data back to the client
-        - it would not need to create a new interface and issue route commands.
+    - where does the app sit, in fornt of the TUN or behind?
+    - so the app sits behind the TUN
+        - at that point, i think, the server could just recieve on its default interface
+        - if the server didn't have the respoinsibility to send data back to the client, it would not need to create a new interface and issue route commands.
 - the data inside, regardless of it using TLS, gets encrypted at the client-end. 
 - it is received at the server, and decrypted. 
 - the server reads the what the end destination address on the packet is. so far this is the only time the destination address on thepacket has be read by the app.
 - server forwards the data. 
 - process repeats backwards
-- use `github.com/songgao/water` for creating TUNs. not sure if there is a better lib
-how can i read from an network interface in Go?
+- use `github.com/songgao/water` for creating TUNs. not sure if there is a better lib...
 
 ### questions to research
 - what are some must haves in a quic config?
