@@ -9,7 +9,9 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
+	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
@@ -30,26 +32,27 @@ import (
 func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int){
 	defer wg.Done()
 
-	udpAddr := net.UDPAddr{Port: 9002, IP: net.IPv4(0,0,0,0)}
+	// Local port to bind to
+	localAddr := net.UDPAddr{Port: config.QuicServerPort, IP: net.ParseIP("0.0.0.0")}
 
-	// Unlike TCP's listen, we need to explicitly create a UDP socket. with tcp listen (the lib handles that for you)
+	// Unlike TCP's listen, we need to explicitly create a UDP socket. with tcp listen, the lib handles that for you
 	// If you want to just listen to the plain-jane UDP port, start reading bytes
-	udpConn, err := net.ListenUDP("udp", &udpAddr)
+	udpConn, err := net.ListenUDP("udp", &localAddr)
 	if err != nil{
-		errCh <- fmt.Errorf("failed to create UDP socket: %v", err)
+		errCh <- fmt.Errorf("QUIC server: failed to bind to local port: %v", err)
 		return
 	}
 	defer udpConn.Close()
 
 	tlsConf, err := tlsconfig.ServerTLSConfig()
 	if err != nil{
-		errCh <- fmt.Errorf("failed to fetch TLS config: %v", err)
+		errCh <- fmt.Errorf("QUIC server: failed to fetch TLS config: %v", err)
 		return
 	}
 
 	uuid, err := helpers.GenUUID()
 	if err != nil {
-		errCh <- fmt.Errorf("failed to genereate UUID: %v", err)
+		errCh <- fmt.Errorf("QUIC server: failed to generate UUID: %v", err)
 		return
 	}
 	/*
@@ -67,12 +70,18 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 	}
 	defer tr.Close()
 
+	quicConf := quic.Config{
+		EnableDatagrams: true,
+		MaxIdleTimeout: time.Second * 15,
+		// there are other interesting choices here like: KeepAlivePeriod, MaxIdleTimeout
+		// the defaults are either sensible for IdelTimeout, and I Don't want to keep alive...yet
+	}
+
 	// start a quic listener
-	listener, err := tr.Listen(tlsConf, nil)
+	listener, err := tr.Listen(tlsConf, &quicConf)
 	if err != nil {
-		errCh <- fmt.Errorf("error starting quic listener on %v: %v", udpAddr.Port, err)
-	} else{
-		log.Printf("server: QUIC listener active on %d\n",port)
+		errCh <- fmt.Errorf("QUIC server: failed to start listener on %v: %v", localAddr.Port, err)
+		return
 	}
 	defer listener.Close()
 
@@ -81,17 +90,16 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 
 	for{
 		quicConn, err := listener.Accept(cancelCtx)
-
 		if err != nil{
 			if errors.Is(err, net.ErrClosed) {
-				log.Println("listener closed")
-				return	// just because the listener is closed, doesn't mean that we should return. there could be active streams
+				break	// just because the listener is closed, doesn't mean that we should return. there could be active streams
 			}
 			// some errors with the accepted conns are okay and can be continued past
 			// some errors must cause exit. How do i know which ones are which?
 			// should implement a isExitWorthy() function to properly identify the different errors and we ought to continue or exit.
 			continue
 		}
+		
 		wg.Add(1)
 		go handleQuicConn(quicConn.Context(), quicConn, wg, errCh)
 	}
@@ -108,11 +116,14 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 	for {
 		stream, err := conn.AcceptStream(ctx)
 		if err != nil {
+			var idleErr *quic.IdleTimeoutError
+			if errors.As(err, &idleErr) || errors.Is(err, net.ErrClosed){
+				errCh <- fmt.Errorf("failed to accept stream: %v", err)
+				return
+			}
 			// can we survive this error and continue?
-			errCh <- fmt.Errorf("failed to accept stream: %v", err)
-			return
+			continue
 		}
-		// log.Print("hey got a stream. handling it ")
 		wg.Add(1)
 		go handleStream(stream.Context(), stream, wg, errCh)
 	}

@@ -22,22 +22,26 @@ func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, remotePort int, r
 		return
 	}
 	
-	// this is the UDP address we'll be sending from and recieving data back to
+	// crate addr object to bind to some local port for comms with server
+	// no port val means one is randomly choosen, but it can't be accessed
 	udpAddr := net.UDPAddr{
 		IP: net.ParseIP("0.0.0.0"),
-		Port: 2023,
+		Port: 0,
 	}
+	
 	udpConn, err := net.ListenUDP("udp4", &udpAddr)
 	if err != nil {
-		errCh <- fmt.Errorf("failed to start udp listener on %v", udpAddr)
+		errCh <- fmt.Errorf("failed to bind to a local UDP port. %v", err)
 		return
 	}
+	// assignedPort := udpConn.LocalAddr().(*net.UDPAddr).Port
+
 	// wrap UDP conn in quic
 	tr := quic.Transport{Conn: udpConn}
 	qconf := quic.Config{
 		EnableDatagrams: true,
 	}
-
+	
 	// this is the remote address to dial
 	remoteUDPAddr := net.UDPAddr{
 		IP: net.ParseIP(remoteAddr),
@@ -48,7 +52,7 @@ func ConnectRemoteQuic(wg *sync.WaitGroup, errCh chan<- error, remotePort int, r
 		errCh <- fmt.Errorf("quic client died while dialing remote: %v", err)
 		return
 	}else{
-		log.Printf("established successful QUIC conn to remote")
+		log.Printf("established QUIC conn to remote")
 	}
 
 	// handle streams
@@ -73,7 +77,8 @@ func createStream(errCh chan<- error, qConn quic.Connection, conn net.Conn, inco
 	
 	str.Write(proto)
 	str.Write(remoteAddr.IP.To16())
-	binary.Write(str, binary.BigEndian, uint16(remoteAddr.Port))
+	log.Printf("the prort is: %v", qConn.LocalAddr().(*net.UDPAddr).Port)
+	binary.Write(str, binary.BigEndian, uint16(qConn.LocalAddr().(*net.UDPAddr).Port))
 
 	tunnel.QuicTcpTunnel(conn, str)
 }

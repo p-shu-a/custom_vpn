@@ -30,12 +30,13 @@ type CloseableListener interface {
 /* 
 	This function blocks, waiting for a cancel signal. Upon receving a signal, it closes the passed listener
 	Doesn't matter if its a TCP listener or a QUIC listener. See CloseableListener interface.
+	port is the port which the lister is bound to
 */
 func CaptureCancel(ctx context.Context, wg *sync.WaitGroup, errCh chan<- error, port int, listener CloseableListener){
 	defer wg.Done()
 	<-ctx.Done()			// block here until cancel()
 	listener.Close()		// call our closeable listeners close() function
-	errCh <-fmt.Errorf("%v: listener closed on port-%d due to SIGTERM", ctx.Err(), port)
+	errCh <-fmt.Errorf("listener closed on port-%d due to SIGTERM", port)
 }
 
 /*
