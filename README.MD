@@ -19,12 +19,8 @@
     - you can view client flags with `./client -h`. server has no flags
 - make requests to client by doing `socat - TCP6:[::1]:2022`
     - this prompts the client to make a connection with the server
-- Known limitation of the client:
-    - the client can only facilitate one connections at a time
-    - you can reconnect after the timeout (15sec, set by the server)
-    - Honestly, the client is just not very good. its trying to do too many things, and it does none well.
 - Server is largely fine, but there are some flow issues:
-    - My one qualm is that error checking on listeners is not through enough.
+    - My one qualm is that error checking on listeners is not thorough enough
     - With QUIC, it can accept multiple conns and streams, but:
         - it is only configured to communicate with two services on the back end
             - A HTTP API service on port 8080, which transacts againt an DB (`github.com/p-shu-a/jwt-auth`)

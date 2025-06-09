@@ -35,18 +35,11 @@ func ConnectRemoteQuic(ctx context.Context, wg *sync.WaitGroup, errCh chan<- err
 		errCh <- fmt.Errorf("QUIC Client: %v", err)
 		return
 	}
-	// assignedPort := udpConn.LocalAddr().(*net.UDPAddr).Port
 
 	// wrap UDP conn in quic
 	tr := quic.Transport{Conn: udpConn}
 
-	// a sensible QUIC config...
-	qconf := quic.Config{
-		EnableDatagrams: true,
-	}
-	
-	// this is the remote address to dial
-	qConn, err := tr.Dial(ctx, remoteAddr, tlsConf, &qconf)
+	qConn, err := tr.Dial(ctx, remoteAddr, tlsConf, &config.ClientQuicConfig)
 	if err != nil {
 		errCh <- fmt.Errorf("quic client died while dialing remote: %v", err)
 		return

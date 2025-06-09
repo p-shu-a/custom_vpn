@@ -66,13 +66,8 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 	}
 	defer tr.Close()
 
-	quicConf := quic.Config{
-		EnableDatagrams: true,
-		MaxIdleTimeout: config.TimeOutDuration,
-	}
-
 	// start a QUIC listener
-	listener, err := tr.Listen(tlsConf, &quicConf)
+	listener, err := tr.Listen(tlsConf, &config.ServerQuicConf)
 	if err != nil {
 		errCh <- fmt.Errorf("QUIC server: failed to start listener on %v: %v", localAddr.Port, err)
 		return

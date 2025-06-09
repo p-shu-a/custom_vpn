@@ -3,6 +3,8 @@ package config
 import (
 	"net"
 	"time"
+
+	"github.com/quic-go/quic-go"
 )
 
 // Server Specific
@@ -16,6 +18,18 @@ var (
 	// Used in QUIC configs to adjust connection timeouts
 	TimeOutDuration  = time.Second * 15
 )
+
+// QUIC config for server
+var	ServerQuicConf = quic.Config{
+	EnableDatagrams: true,
+	MaxIdleTimeout: TimeOutDuration,
+	Allow0RTT: true,
+}
+
+// QUIC config for client
+var ClientQuicConfig = quic.Config{
+	EnableDatagrams: true,
+}
 
 // Server Endpoint Services
 var (

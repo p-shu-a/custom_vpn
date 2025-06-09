@@ -23,7 +23,9 @@ func ClientTLSConfig(caCertLoc string) (*tls.Config, error){
 	certPool.AppendCertsFromPEM(caCert)
 	clientConfig := tls.Config{
 		RootCAs: certPool,
-		ServerName: "localhost", // This ought to be a variable. added to beat SAN warning
+		ServerName: "localhost", // added to beat SAN warning
+		// ClientSessionChache allows for TLS session resumption
+		// ClientSessionCache: tls.NewLRUClientSessionCache(100),
 	}
 	return &clientConfig, nil
 }
