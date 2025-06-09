@@ -28,10 +28,10 @@ func main(){
 	go helpers.ErrorCollector(errCh, done)
 
 	wg.Add(1)
-	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, config.RawTcpServerPort, config.SSHEndpointService)
+	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, config.RawTcpServerPort, config.HTTPEndpointService)
 
 	wg.Add(1)
-	go tcp.ListenAndServeWithTLS(cancelCtx, errCh, &wg, config.TcpTlsServerPort, config.SSHEndpointService)
+	go tcp.ListenAndServeWithTLS(cancelCtx, errCh, &wg, config.TcpTlsServerPort, config.HTTPEndpointService)
 
 	wg.Add(1)
 	go quic.QuicServer(cancelCtx, errCh, &wg, config.QuicServerPort)

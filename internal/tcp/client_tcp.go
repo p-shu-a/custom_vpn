@@ -10,7 +10,8 @@ import (
 	"sync"
 )
 
-func ConnectRemoteSecure(wg *sync.WaitGroup, errCh chan<- error, conn net.Conn, serverConnPort int, serverAddr, caCertLoc string) error {
+// Connect via TCP to remote server with TLS
+func ConnectRemoteSecure(wg *sync.WaitGroup, errCh chan<- error, conn net.Conn, caCertLoc string, serverAddr *net.TCPAddr) error {
 	defer wg.Done()
 	
 	clientConfg, err := tlsconfig.ClientTLSConfig(caCertLoc)
@@ -20,12 +21,12 @@ func ConnectRemoteSecure(wg *sync.WaitGroup, errCh chan<- error, conn net.Conn, 
 
 	// if you wonder where the "conn.close()" are, they're in the tunnel logic
 	serverConn, err := tls.Dial("tcp",
-								fmt.Sprintf("%v:%d", serverAddr, serverConnPort), 
+								serverAddr.String(), 
 								clientConfg)
 	if err != nil{
-		return fmt.Errorf("error dialing to server (%v:%d): %v", serverAddr, serverConnPort, err)
-	} else{
-		log.Printf("client: secure connection to server successfully established %v:%d\n", serverAddr, serverConnPort)
+		return fmt.Errorf("error dialing to server (%v): %v", serverAddr.String(), err)
+	} else {
+		log.Printf("client: established secure TCP conn to server %v", serverAddr.String())
 	}
 	defer serverConn.Close()
 
@@ -34,15 +35,15 @@ func ConnectRemoteSecure(wg *sync.WaitGroup, errCh chan<- error, conn net.Conn, 
 	return nil
 }
 
-
-func ConnectRemoteUnsec(wg *sync.WaitGroup, errCh chan<- error, serverConnPort int, conn net.Conn, serverAddr string) error {
+// Connect to remote server with Raw TCP
+func ConnectRemoteUnsec(wg *sync.WaitGroup, errCh chan<- error, conn net.Conn, serverAddr *net.TCPAddr) error {
 	defer wg.Done()
 
-	serverConn, err := net.Dial("tcp", fmt.Sprintf("%v:%d", serverAddr, serverConnPort))
+	serverConn, err := net.Dial("tcp", serverAddr.String())
 	if err != nil{
-		return fmt.Errorf("client: error dialing to server (%v:%d): %v", serverAddr, serverConnPort, err)
+		return fmt.Errorf("client: error dialing to server (%v): %v", serverAddr.String(), err)
 	} else{
-		log.Printf("client: insecure connection to server successfully established (%v:%d)\n", serverAddr, serverConnPort)
+		log.Printf("client: established insecure connection to server %v", serverAddr.String())
 	}
 
 	tunnel.CreateTunnel(serverConn, conn)

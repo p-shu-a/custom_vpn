@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"sync"
 
+	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
@@ -21,10 +24,9 @@ import (
 
 func main(){
 
-	clientListenerPort := flag.Int("p", 2022, "Port used to connect to client (via nc, socat)")
-	serverAddress := flag.String("addr", "localhost", "Server IP Address")
+	clientListenerPort := flag.Int("p", config.ClientListnerPort, "Port used to connect to client (via socat, postman, ssh, etc.)")
+	remoteServerAddress := flag.String("addr", "127.0.0.1", "Server IP Address")
 	mode := flag.String("mode", "quic", "Connection mode. options are: \"tcp\", \"tls\", and \"quic\"")
-
 	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
 	flag.Parse()
 
@@ -32,18 +34,18 @@ func main(){
 	done := make(chan struct{})
 	go helpers.ErrorCollector(errCh, done)
 
+	ctx := helpers.SetupShutdownHelper()
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	// add local listener calls to multiple ports here
 	// also add context to start listner, just like with server, to kill client if sigterm is sent
-	startLocalListener(errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *mode)
+	go startLocalListener(ctx, errCh, &wg, *clientListenerPort, *remoteServerAddress, *caCertLoc, *mode)
 
 	wg.Wait()
-	
-	<-done
 	close(errCh)
 
+	<-done
 	log.Print("all listeners stopped...exiting client")
 }
 
@@ -55,50 +57,62 @@ func main(){
 	tries to establish remote conn with or without tls
 	We need to be able to start multiple listeners (HTTP, SSH, etc...)
 */
-func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, serverAddr, caCertLoc string, mode string) {
+func startLocalListener(ctx context.Context, errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, remoteServerAddr, caCertLoc string, mode string) {
 	defer wg.Done()
 
-	// Start a local listener on the provided port
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", clientListenerPort))
+	localAddr := net.TCPAddr{
+		IP: net.ParseIP("0.0.0.0"),
+		Port: clientListenerPort,
+	}
+
+	// Start a local listener...what if this was UDP?
+	localListener, err := net.Listen("tcp", localAddr.String())
 	if err != nil{
 		errCh <- fmt.Errorf("error creating listener: %v", err)
 		return
 	} else {
-		log.Printf("client: listener started successfully on %d", clientListenerPort)
+		log.Printf("Client: listener started on %d", localAddr.Port)
 	}
-	defer listener.Close()
+	defer localListener.Close()
 	
+	wg.Add(1)
+	go helpers.CaptureCancel(ctx, wg, errCh, localAddr.Port, localListener)
 
 	for {
-		conn, err := listener.Accept()
+		conn, err := localListener.Accept()
 		if err != nil {
-			_ , match := err.(net.Error) 
-			if match {
-				continue
+			//_ , match := err.(net.Error) 
+			if errors.Is(err, net.ErrClosed){
+				errCh <- err
+				return
 			}
-			errCh <- fmt.Errorf("failed to accept connection: %v", err)
+			continue
 		}
 
-		log.Printf("client: recieved connection from: %v\n", conn.RemoteAddr().String())
+		log.Printf("client: recieved client request from: %v\n", conn.RemoteAddr().String())
 	
-		// this is NFG. why? the default, quic, does not need to be coupled to my TCP listener. hell, if its quic, we don't
-		// even need to do the TCP listener setup. my intuitons are struggling here.
-		// quic and tcp conns are fundamentally different. since QUIC can have multiple streams per conn.
-		// once a quic conns is established, all incomming requests to the local listner need to be handled as streams
-		// that just ain't so for tcp.
-		// every time a request comes in, it shouldn't just create a new quic conn (like it does now)
 		switch mode{
 		case "tls":
+			remoteAddr := net.TCPAddr{
+				IP: net.ParseIP(remoteServerAddr),
+				Port: config.TcpTlsServerPort,
+			}
 			wg.Add(1)
-			go tcp.ConnectRemoteSecure(wg, errCh, conn, 9001, serverAddr, caCertLoc)
+			go tcp.ConnectRemoteSecure(wg, errCh, conn, caCertLoc, &remoteAddr)
 		case "tcp":
+			remoteAddr := net.TCPAddr{
+				IP: net.ParseIP(remoteServerAddr),
+				Port: config.RawTcpServerPort,
+			}
 			wg.Add(1)
-			go tcp.ConnectRemoteUnsec(wg, errCh, 9000, conn, serverAddr)
+			go tcp.ConnectRemoteUnsec(wg, errCh, conn, &remoteAddr)
 		default:
 			wg.Add(1)
-			go quic.ConnectRemoteQuic(wg, errCh, 9002, serverAddr, caCertLoc, conn)
+			remoteAddr := net.UDPAddr{
+				IP: net.ParseIP(remoteServerAddr),
+				Port: config.QuicServerPort,
+			}
+			go quic.ConnectRemoteQuic(ctx, wg, errCh, &remoteAddr, caCertLoc, conn)
 		}
-
 	}
-
 }
