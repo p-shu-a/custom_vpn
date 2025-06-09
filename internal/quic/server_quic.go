@@ -51,11 +51,6 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 		return
 	}
 
-	uuid, err := helpers.GenUUID()
-	if err != nil {
-		errCh <- fmt.Errorf("QUIC server: failed to generate UUID: %v", err)
-		return
-	}
 	/*
 		Transport is pretty central to QUIC-go.	
 		This is actually what "makes" the UDP Conn into a QUIC Conn.
@@ -65,7 +60,7 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 	tr := &quic.Transport{
 	 	Conn: udpConn,
 		ConnContext: func(ctx context.Context, ci *quic.ClientInfo) (context.Context, error) {
-			connId := uuid
+			connId, _ := helpers.GenUUID()
 			return context.WithValue(ctx, helpers.ConnId, connId), nil
 		},
 	}

@@ -20,7 +20,6 @@ import (
 /*
 	Since our definition of a CloseableListener is "an interface which implements a close() method",
 	and both net.Listener and quic.listener have a close(), they are, thus, CloseableListeners
-	net.Listener implments close(), thus it satisfies.
 	This is "interface satisfaction". Very Cool
 */
 type CloseableListener interface {
