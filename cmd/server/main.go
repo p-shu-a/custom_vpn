@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
-	"sync"
+	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
+	"log"
+	"sync"
 )
 
 
@@ -13,7 +14,6 @@ func main(){
 
 	// The returned returned context is a WithCancel() context
 	// Its purpose it to shutdown the entire server upon a closing signal
-	// It should not be used as the context per-stream or per-connection...i'd think
 	cancelCtx := helpers.SetupShutdownHelper()
 	var wg sync.WaitGroup
 	
@@ -28,13 +28,13 @@ func main(){
 	go helpers.ErrorCollector(errCh, done)
 
 	wg.Add(1)
-	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, 9000)
+	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, config.RawTcpServerPort, config.SSHEndpointService)
 
 	wg.Add(1)
-	go tcp.ListenAndServeWithTLS(cancelCtx, errCh, &wg, 9001)
+	go tcp.ListenAndServeWithTLS(cancelCtx, errCh, &wg, config.TcpTlsServerPort, config.SSHEndpointService)
 
 	wg.Add(1)
-	go quic.QuicServer(cancelCtx, errCh, &wg, 9002)
+	go quic.QuicServer(cancelCtx, errCh, &wg, config.QuicServerPort)
 
 	wg.Wait()
 	close(errCh)

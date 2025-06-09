@@ -9,7 +9,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"time"
 
 	"custom_vpn/config"
 	"custom_vpn/internal/helpers"
@@ -32,21 +31,23 @@ import (
 func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int){
 	defer wg.Done()
 
-	// Local port to bind to
-	localAddr := net.UDPAddr{Port: config.QuicServerPort, IP: net.ParseIP("0.0.0.0")}
+	// Local binding. Bind on provided port
+	localAddr := net.UDPAddr{
+		IP: net.ParseIP("0.0.0.0"),
+		Port: port,
+	}
 
-	// Unlike TCP's listen, we need to explicitly create a UDP socket. with tcp listen, the lib handles that for you
-	// If you want to just listen to the plain-jane UDP port, start reading bytes
+	// Create a UPD conn on specified address 
 	udpConn, err := net.ListenUDP("udp", &localAddr)
 	if err != nil{
-		errCh <- fmt.Errorf("QUIC server: failed to bind to local port: %v", err)
+		errCh <- fmt.Errorf("QUIC server: %v", err)
 		return
 	}
 	defer udpConn.Close()
 
 	tlsConf, err := tlsconfig.ServerTLSConfig()
 	if err != nil{
-		errCh <- fmt.Errorf("QUIC server: failed to fetch TLS config: %v", err)
+		errCh <- fmt.Errorf("QUIC server: %v", err)
 		return
 	}
 
@@ -56,10 +57,10 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 		return
 	}
 	/*
-		This is actually what makes the udp conn into a QUIC conn.
-		transport is pretty central to QUIC-go.
+		Transport is pretty central to QUIC-go.	
+		This is actually what "makes" the UDP Conn into a QUIC Conn.
 		The ConnContext function is whats used to assign a connId to a connection
-		the parent context is passed to the ConnContext func via the Lister.Accept() func
+		The parent context is passed to the ConnContext func via the Lister.Accept() func
 	*/
 	tr := &quic.Transport{
 	 	Conn: udpConn,
@@ -72,22 +73,23 @@ func QuicServer(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGrou
 
 	quicConf := quic.Config{
 		EnableDatagrams: true,
-		MaxIdleTimeout: time.Second * 15,
-		// there are other interesting choices here like: KeepAlivePeriod, MaxIdleTimeout
-		// the defaults are either sensible for IdelTimeout, and I Don't want to keep alive...yet
+		MaxIdleTimeout: config.TimeOutDuration,
 	}
 
-	// start a quic listener
+	// start a QUIC listener
 	listener, err := tr.Listen(tlsConf, &quicConf)
 	if err != nil {
 		errCh <- fmt.Errorf("QUIC server: failed to start listener on %v: %v", localAddr.Port, err)
 		return
+	}else{
+		log.Printf("QUIC Server: listening on port %v", localAddr.Port)
 	}
 	defer listener.Close()
 
 	wg.Add(1)
-	go helpers.CaptureCancel(cancelCtx, wg, errCh, port, listener)
+	go helpers.CaptureCancel(cancelCtx, wg, errCh, localAddr.Port, listener)
 
+	// still not happy with the error handling on following
 	for{
 		quicConn, err := listener.Accept(cancelCtx)
 		if err != nil{
@@ -118,10 +120,9 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 		if err != nil {
 			var idleErr *quic.IdleTimeoutError
 			if errors.As(err, &idleErr) || errors.Is(err, net.ErrClosed){
-				errCh <- fmt.Errorf("failed to accept stream: %v", err)
+				errCh <- fmt.Errorf("QUIC server: failed to accept stream: %v", err)
 				return
 			}
-			// can we survive this error and continue?
 			continue
 		}
 		wg.Add(1)
@@ -129,6 +130,8 @@ func handleQuicConn(ctx context.Context, conn quic.Connection, wg *sync.WaitGrou
 	}
 }
 
+
+// Reads the stream header and dials the appropriate backend service
 func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, errCh chan<- error){
 	defer wg.Done()
 	defer stream.Close()
@@ -145,24 +148,23 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 	binary.Read(stream, binary.BigEndian, &port)
 	// read from stream into var-port. since port is a uint16, two bytes will be read
 
-
 	streamHeader := helpers.StreamHeader{
 		Proto: protoBuff,
 		IP: net.IP(ipBuff[:]),
 		Port: port,
 	}
 
-	log.Printf("from stream header. Proto: %v, IP: %v, Port: %v",
+	log.Printf("from stream header. Proto (%v), IP (%v), Port (%v)",
 		string(streamHeader.Proto[:]),
 		streamHeader.IP.String(),
 		streamHeader.Port)
 
 	switch string(streamHeader.Proto[:]) {
 	case "HTTP":
-		backService := dialService("127.0.0.1", 8080, errCh)
+		backService := dialService(config.HTTPEndpointService, errCh)
 		tunnel.QuicTcpTunnel(backService, stream)
 	case "SSH":
-		backService := dialService("127.0.0.1", 22, errCh)
+		backService := dialService(config.SSHEndpointService, errCh)
 		tunnel.QuicTcpTunnel(backService, stream)
 	default:
 		errCh <- fmt.Errorf("failed to identify stream protocol")
@@ -170,11 +172,10 @@ func handleStream(ctx context.Context, stream quic.Stream, wg *sync.WaitGroup, e
 
 }
 
-func dialService(serviceAddr string, servicePort int, errCh chan<- error) net.Conn {
+// This functions dials some endpoint service and returns a net.conn
+func dialService(endpointService net.TCPAddr, errCh chan<- error) net.Conn {
 
-	log.Printf("quic server: dialing service on %v:%v", serviceAddr, servicePort)
-
-	targetConn, err := net.Dial("tcp", fmt.Sprintf("%v:%v", serviceAddr, servicePort))
+	targetConn, err := net.Dial("tcp", endpointService.String())
 	if err != nil{
 		errCh <- fmt.Errorf("error while connecting to ssh on server: %v", err)
 		return nil

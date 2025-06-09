@@ -23,9 +23,8 @@ func main(){
 
 	clientListenerPort := flag.Int("p", 2022, "Port used to connect to client (via nc, socat)")
 	serverAddress := flag.String("addr", "localhost", "Server IP Address")
-	useRawTcp := flag.Bool("raw", false, "Use Raw TCP")
-	useTls := flag.Bool("tls", false, "Use TLS")
-	useQuic := flag.Bool("quic", true, "Use QUIC protocol (default). If false, TCP+TLS will be used")
+	mode := flag.String("mode", "quic", "Connection mode. options are: \"tcp\", \"tls\", and \"quic\"")
+
 	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
 	flag.Parse()
 
@@ -38,7 +37,7 @@ func main(){
 	wg.Add(1)
 	// add local listener calls to multiple ports here
 	// also add context to start listner, just like with server, to kill client if sigterm is sent
-	startLocalListener(errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *useQuic, *useTls, *useRawTcp)
+	startLocalListener(errCh, &wg, *clientListenerPort, *serverAddress, *caCertLoc, *mode)
 
 	wg.Wait()
 	
@@ -56,7 +55,7 @@ func main(){
 	tries to establish remote conn with or without tls
 	We need to be able to start multiple listeners (HTTP, SSH, etc...)
 */
-func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, serverAddr, caCertLoc string, useQuic, useTls, useRawTcp bool) {
+func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPort int, serverAddr, caCertLoc string, mode string) {
 	defer wg.Done()
 
 	// Start a local listener on the provided port
@@ -88,11 +87,11 @@ func startLocalListener(errCh chan<-error, wg *sync.WaitGroup, clientListenerPor
 		// once a quic conns is established, all incomming requests to the local listner need to be handled as streams
 		// that just ain't so for tcp.
 		// every time a request comes in, it shouldn't just create a new quic conn (like it does now)
-		switch {
-		case useTls:
+		switch mode{
+		case "tls":
 			wg.Add(1)
 			go tcp.ConnectRemoteSecure(wg, errCh, conn, 9001, serverAddr, caCertLoc)
-		case useRawTcp:
+		case "tcp":
 			wg.Add(1)
 			go tcp.ConnectRemoteUnsec(wg, errCh, 9000, conn, serverAddr)
 		default:

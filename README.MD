@@ -3,6 +3,39 @@
 - But the project is definitely a tunnel for securely communicating data from client to server
 
 ---
+### Getting Started
+- It is assumed that you have Go installed. This project was built using Go v.1.24.2
+- You'd have to do a few things:
+    - run the `ssh/env_setup.sh`
+    - Generate the cert and keys for the CA & Server. Detailed instructions can be found in `ssl/README.MD`
+        - a `server.cnf` and `ca.cnf` have been provided for you convenience
+    - This is a manual process, you have to make sure:
+        - the right dirs are exported (feel free to make changes to the locations)
+        - the certs generated are placed in the right location
+- build the binaries:
+    - `go build -o ./bin/server ./cmd/server`
+    - `go build -o ./bin/client ./cmd/client`
+- fire up the binaries in individual terminals
+    - you can view client flags with `./client -h`. server has no flags
+- make requests to client by doing `socat - TCP6:[::1]:2022`
+    - this prompts the client to make a connection with the server
+- Known limitation of the client:
+    - the client can only facilitate one connections at a time
+    - you can reconnect after the timeout (15sec, set by the server)
+    - Honestly, the client is just not very good. its trying to do too many things, and it does none well.
+- Server is largely fine, but there are some flow issues:
+    - My one qualm is that error checking on listeners is not through enough.
+    - With QUIC, it can accept multiple conns and streams, but:
+        - it is only configured to communicate with two services on the back end
+            - A HTTP API service on port 8080, which transacts againt an DB (`github.com/p-shu-a/jwt-auth`)
+            - SSH on port 22
+        - the catch is that you are routed to the service based on the stream header's "PROTO" value
+            - That value is based on the port number used to connection to the client
+            - 2024 for SSH and 2022 for HTTP
+        - hardly ideal
+            
+
+---
 #### Why does this project exist?
 - The genesis of this project was a question, "what does the world see when I use a vpn?"
 - Figured it would teach me about VPN architecture, networking and allow me to explore Go in more depth
@@ -57,13 +90,3 @@
 - Could make the auth service more robust and useful
 - Get certs from LetsEncrypt.
 
----
-### Getting Started
-- It is assumed that you have Go installed. This project was build using Go v.1.24.2
-- You'd have to do a few things:
-    - run the `ssh/env_setup.sh`
-    - Generate the cert and keys for the CA & Server. Detailed instructions can be found in `ssl/README.MD`
-        - a `server.cnf` and `ca.cnf` have been provided for you convenience
-    - This is a manual process, you have to make sure:
-        - the right dirs are exported (feel free to make changes to the locations)
-        - the certs generated are placed in the right location

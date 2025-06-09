@@ -8,40 +8,43 @@ import (
 	"log"
 	"net"
 	"sync"
-	
+
 	"custom_vpn/internal/helpers"
 	"custom_vpn/tlsconfig"
 	"custom_vpn/tunnel"
 )
 
 // Creates a TCP connection on the specified port. Utilizes transport layer scurity
-func ListenAndServeWithTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int) {
+func ListenAndServeWithTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int, endpointService net.TCPAddr) {
 	defer wg.Done()
 
 	serverConfig, err := tlsconfig.ServerTLSConfig()
 	if err != nil {
-		errCh <- fmt.Errorf("error getting server config: %v", err)
+		errCh <- fmt.Errorf("TLS Server: error getting server config: %v", err)
 		return
-	} else {
-		log.Println("TLS Server: TLS config successfully acquired")
 	}
 
-	listener, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), serverConfig)
+	tcpAddr := net.TCPAddr{
+		IP: net.ParseIP("0.0.0.0"),
+		Port: port,
+	}
+
+	listener, err := tls.Listen("tcp", tcpAddr.String(), serverConfig)
 	if err != nil {
-		errCh <- fmt.Errorf("error while starting listener on %d: %v", port, err)
+		errCh <- fmt.Errorf("TLS Server: error while starting listener: %v", err)
 		return
 	} else {
-		log.Printf("TLS Server: Listening on %d\n",port)
+		log.Printf("TLS Server: listening on port %d",port)
 	}
 	defer listener.Close()
 
 	/*
-		This go func's jobs is to listen for cancel() which gets called when SIGTERM OR SIGINT.
+		This go func's jobs is to listen for cancel() which gets called when SIGTERM OR SIGINT is sent.
 		It then closes the listener and sends the error down the channel.
 		Added the wg.Add() to ensure the error gets printed to the screen before the program exits
 	*/
 	wg.Add(1)
-	go helpers.CaptureCancel(cancelCtx, wg, errCh, port, listener)
+	go helpers.CaptureCancel(cancelCtx, wg, errCh, tcpAddr.Port, listener)
 
 	for {
 		clientConn, err := listener.Accept()
@@ -52,26 +55,31 @@ func ListenAndServeWithTLS(cancelCtx context.Context, errCh chan<- error, wg *sy
 			errCh <- fmt.Errorf("unable to accept connection: %v", err)
 			continue
 		}
-		go handleClientConn(clientConn, errCh)
+		go handleClientConn(clientConn, errCh, endpointService)
 	}
 }
 
-func ListenAndServeNoTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int) {
+// Starts a raw TCP listener on given port
+func ListenAndServeNoTLS(cancelCtx context.Context, errCh chan<- error, wg *sync.WaitGroup, port int, endpointService net.TCPAddr) {
 	defer wg.Done()
 
+	tcpAddr := net.TCPAddr{
+		IP: net.ParseIP("0.0.0.0"),
+		Port: port,
+	}
 	// start listener
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d",port))
+	listener, err := net.ListenTCP("tcp", &tcpAddr)
 	if err != nil{
-		errCh <- fmt.Errorf("error starting listener (on-tls) on %d: %v", port, err)
+		errCh <- fmt.Errorf("TCP Server: failed to start listener (on-tls): %v", err)
 		return
-	} else{
-		log.Printf("server: non-TLS Listening on %d\n",port)
+	} else {
+		log.Printf("TCP Server: listening on port %d", tcpAddr.Port)
 	}
 	defer listener.Close()
 
 	// capture cancel()
 	wg.Add(1)
-	go helpers.CaptureCancel(cancelCtx, wg, errCh, port, listener)
+	go helpers.CaptureCancel(cancelCtx, wg, errCh, tcpAddr.Port, listener)
 
 	// start accepting connections
 	for {
@@ -80,18 +88,19 @@ func ListenAndServeNoTLS(cancelCtx context.Context, errCh chan<- error, wg *sync
 			if errors.Is(err, net.ErrClosed){
 				return
 			}
-			errCh <- fmt.Errorf("server: unable to accept connection on %d: %v", port, err)
+			errCh <- fmt.Errorf("TCP Server: unable to accept connection: %v", err)
 			continue
 		}
-		go handleClientConn(clientConn, errCh)		
+		go handleClientConn(clientConn, errCh, endpointService)
 	}
 }
 
-func handleClientConn(clientConn net.Conn, errCh chan<- error) {
+// Dials the provided endpoint service 
+func handleClientConn(clientConn net.Conn, errCh chan<- error, endpointService net.TCPAddr) {
 
 	log.Printf("server: Recieved a conn on %v from %v\n", clientConn.LocalAddr(), clientConn.RemoteAddr())
 
-	targetConn, err := net.Dial("tcp", "127.0.0.1:22")
+	targetConn, err := net.Dial("tcp", endpointService.String())
 	if err != nil{
 		errCh <- fmt.Errorf("error while connecting to ssh on server: %v", err)
 		return

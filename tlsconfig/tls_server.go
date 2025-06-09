@@ -3,7 +3,6 @@ package tlsconfig
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -22,9 +21,6 @@ func ServerTLSConfig() (*tls.Config, error) {
 	if serverPemLoc == "" {
 		return nil, fmt.Errorf("failed to find server cert")
 	}
-
-	log.Printf("fetched server cert from: %v\n", serverPemLoc)
-	log.Printf("fetched server key from: %v\n", serverKeyLoc)
 
 	serverCert, err := tls.LoadX509KeyPair(serverPemLoc,serverKeyLoc)
 	if err != nil {
