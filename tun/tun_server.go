@@ -24,7 +24,7 @@ func StartTunListener(ctx context.Context, wg *sync.WaitGroup, errCh chan<- erro
 
 	// udp for local bind
 	localBind := net.UDPAddr{
-		IP: net.ParseIP("10.0.0.5"),
+		IP: net.ParseIP("0.0.0.0"),
 		Port: config.ServerPortTun,
 	}
 

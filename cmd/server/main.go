@@ -37,6 +37,7 @@ func main(){
 		log.Fatal(err)
 	}
 	log.Printf("server utun name %v", details.TunIface.Name())
+	log.Printf("is tun? %v", details.TunIface.IsTUN())
 	fmt.Scanln()
 	log.Printf("continuing...")
 	wg.Add(1)
