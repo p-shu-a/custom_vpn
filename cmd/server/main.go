@@ -5,6 +5,8 @@ import (
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
+	"custom_vpn/tun"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -26,6 +28,21 @@ func main(){
 	errCh := make(chan error)
 	done := make(chan struct{})		// this done channel was created to ensure the ordering of the logs
 	go helpers.ErrorCollector(errCh, done)
+
+	////////////////////////////
+
+	// Tun interface operations
+	details, err := tun.ConfigureTUN(config.ServerVIP,config.ClientVIP) // local is a vip, peer is "real"
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("server utun name %v", details.TunIface.Name())
+	fmt.Scanln()
+	log.Printf("continuing...")
+	wg.Add(1)
+	go tun.StartTunListener(cancelCtx, &wg,errCh, details)
+
+	///////////////////////
 
 	wg.Add(1)
 	go tcp.ListenAndServeNoTLS(cancelCtx, errCh, &wg, config.RawTcpServerPort, config.HTTPEndpointService)

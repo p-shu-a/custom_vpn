@@ -2,10 +2,12 @@ package tunnel
 
 import (
 	"io"
+	"log"
 	"net"
 	"sync"
 
 	"github.com/quic-go/quic-go"
+	"github.com/songgao/water"
 )
 
 // Use for copy between two net.conns
@@ -53,6 +55,34 @@ func QuicTcpTunnel(conn net.Conn, stream quic.Stream){
 	go func(){
 		defer wg.Done()
 		io.Copy(conn, stream)
+		once.Do(close)
+	}()
+
+	wg.Wait()
+}
+
+func QuicTunTunnel(stream quic.Stream, ifce *water.Interface){
+	var wg sync.WaitGroup
+	var once sync.Once
+	close := func(){
+		log.Print("QuicTunTunnel: doing close")
+		ifce.Close()
+		stream.Close()
+	}
+
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		_, err := io.Copy(ifce, stream)
+		log.Printf("QuicTunTunnel: ioCopy (ifce, str) ended: %v", err)
+		once.Do(close)
+	}()
+
+	wg.Add(1)
+	go func(){
+		defer wg.Done()
+		_, err := io.Copy(stream, ifce)
+		log.Printf("QuicTunTunnel: ioCopy (str, ifce) ended: %v", err)
 		once.Do(close)
 	}()
 

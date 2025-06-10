@@ -7,7 +7,7 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-// Server Specific
+// Server Specific Tunnel Ports
 var (
 	// Port for raw TCP listener
 	RawTcpServerPort = 9000
@@ -23,12 +23,14 @@ var (
 var	ServerQuicConf = quic.Config{
 	EnableDatagrams: true,
 	MaxIdleTimeout: TimeOutDuration,
-	Allow0RTT: true,
+	//Allow0RTT: true,
 }
 
 // QUIC config for client
 var ClientQuicConfig = quic.Config{
 	EnableDatagrams: true,
+	MaxIdleTimeout: time.Second * 120,
+	KeepAlivePeriod: 1,
 }
 
 // Server Endpoint Services
@@ -47,4 +49,12 @@ var (
 var (
 	// Port on which the client app recieves requests
 	ClientListnerPort = 2022
+)
+
+
+// TUN settings
+var (
+	ClientVIP = net.ParseIP("10.0.0.2")
+	ServerVIP= net.ParseIP("10.0.0.1")		// is there a way to automatically asign vips?
+	ServerPortTun = 9005
 )

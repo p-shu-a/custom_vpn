@@ -20,9 +20,9 @@ type TunDetails struct{
 	DestIP  net.IP
 }
 
-// Called this function creates a TUN interface. Assigns a VIP to the interface. Adds a Route
-// Since uTUNs are ephemeral, the route rules related to them are also lost when uTUNs disappear.
-func ConfigureTUN(localVIP, peerVIP net.IP) (*TunDetails, error) {
+// Calling this function creates a TUN interface, assigns a VIP to the interface and adds a route.
+// Note: since uTUNs are ephemeral, the route rules related to them are also lost when uTUNs disappear.
+func ConfigureTUN(localVIP, peerIP net.IP) (*TunDetails, error) {
 
 	var details TunDetails
 
@@ -33,15 +33,15 @@ func ConfigureTUN(localVIP, peerVIP net.IP) (*TunDetails, error) {
 
 	details.TunIface = iface
 	details.LocalVIP = localVIP
-	details.DestIP = peerVIP
+	details.DestIP = peerIP
 
-	if err = addVIP(details); err != nil{
-		return nil, err
-	}
+	// if err = addVIP(details); err != nil{
+	// 	return nil, err
+	// }
 
-	if err = addRoute(details); err != nil{
-		return nil, err
-	}
+	// if err = addRoute(details); err != nil{
+	// 	return nil, err
+	// }
 
 	return &details, nil
 }
@@ -69,7 +69,7 @@ func addVIP(details TunDetails) error {
 	if runtime.GOOS == "darwin" {
 		log.Print("we're on darwin (macos)")
 		//                 use ifconfg,      with  TUN         , IPv4  ,          local VIP             ,            peer VIP          , activate the interface
-		cmd = exec.Command("ifconfig", details.TunIface.Name(), "inet", details.LocalVIP.To4().String(), details.DestIP.To4().String(), "up")
+		cmd = exec.Command("ifconfig", details.TunIface.Name(), "inet", details.LocalVIP.To4().String(), details.LocalVIP.To4().String(), "up")
 		if err := cmd.Run(); err != nil{
 			return fmt.Errorf("died assigning VIP to client: %v", err)
 		}

@@ -25,7 +25,7 @@ func ConnectRemoteQuic(ctx context.Context, wg *sync.WaitGroup, errCh chan<- err
 	
 	// UDP Addr for a local bind
 	// no port val means one is randomly choosen, but it can't be accessed
-	udpAddrForRemoteComms := net.UDPAddr{
+	udpAddrForRemoteComms := net.UDPAddr {
 		IP: net.ParseIP("0.0.0.0"),
 		Port: 0,
 	}

@@ -13,6 +13,7 @@ import (
 	"custom_vpn/internal/helpers"
 	"custom_vpn/internal/quic"
 	"custom_vpn/internal/tcp"
+	"custom_vpn/tun"
 )
 
 /*
@@ -24,10 +25,10 @@ import (
 
 func main(){
 
-	clientListenerPort := flag.Int("p", config.ClientListnerPort, "Port used to connect to client (via socat, postman, ssh, etc.)")
-	remoteServerAddress := flag.String("addr", "127.0.0.1", "Server IP Address")
-	mode := flag.String("mode", "quic", "Connection mode. options are: \"tcp\", \"tls\", and \"quic\"")
-	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
+//	clientListenerPort := flag.Int("p", config.ClientListnerPort, "Port used to connect to client (via socat, postman, ssh, etc.)")
+//	remoteServerAddress := flag.String("addr", "127.0.0.1", "Server IP Address")
+//	mode := flag.String("mode", "quic", "Connection mode. options are: \"tcp\", \"tls\", and \"quic\"")
+//	caCertLoc := flag.String("ca", "", "specify a custom CA cert")
 	flag.Parse()
 
 	errCh := make(chan error, 1)
@@ -37,10 +38,33 @@ func main(){
 	ctx := helpers.SetupShutdownHelper()
 	var wg sync.WaitGroup
 
+	/////////////
+
+	details, err := tun.ConfigureTUN(config.ClientVIP, config.ServerVIP)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("client utun name %v", details.TunIface.Name())
+	fmt.Scanln()
+	log.Printf("resuming")
+
 	wg.Add(1)
+	go helpers.CaptureCancel(ctx, &wg, errCh, 0, details.TunIface)
+
+	remoteAddr := net.UDPAddr{
+		IP: net.ParseIP("10.0.0.5"),
+		Port: config.ServerPortTun,
+	}
+	wg.Add(1)
+	go tun.StartTunReader(ctx, &wg, errCh, &remoteAddr, details)
+
+
+	/////////////
+
+//	wg.Add(1)
 	// add local listener calls to multiple ports here
 	// also add context to start listner, just like with server, to kill client if sigterm is sent
-	go startLocalListener(ctx, errCh, &wg, *clientListenerPort, *remoteServerAddress, *caCertLoc, *mode)
+//	go startLocalListener(ctx, errCh, &wg, *clientListenerPort, *remoteServerAddress, *caCertLoc, *mode)
 
 	wg.Wait()
 	close(errCh)
